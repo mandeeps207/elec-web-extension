@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "UK Electrician Qualification Checker",
+  "version": "0.1.0",
+  "description": "Explore typical next steps in your electrical training with Elec Training.",
+  "homepage_url": "https://elec.training/",
+  "action": { "default_title": "Elec Training qualification checker", "default_popup": "popup/popup.html" },
+  "content_security_policy": { "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "qualification-checker-development@example.invalid",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  }
+}
