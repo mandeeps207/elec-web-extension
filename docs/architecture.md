@@ -4,6 +4,8 @@
 
 `src/data/qualification-routes.js` owns route IDs, all qualification prose, caveats, sources, uncertainty and review metadata. The presentation code creates nodes with `textContent` and never inserts HTML strings. No selection is persisted. Closing and reopening the popup starts a fresh instance.
 
+The toolbar document has explicit 380px width/min-width on both `html` and `body`; viewport-dependent width caps are prohibited by source/build validation. A body scroll container capped at 500px keeps its vertical scrollbar inside that width. This avoids intrinsic sizing collapse and Firefox root-scrollbar overflow. Browser tests separately verify regular-tab interactions and actual native action-popup geometry via `action.openPopup()` and `extension.getViews({type: 'popup'})`. Default-zoom automation does not replace manual zoom/display-scale and screen-reader acceptance.
+
 Both browsers receive the same runtime. Firefox adds a Gecko ID, minimum desktop version 142, and `data_collection_permissions.required: ["none"]`. Version 142 conservatively clears Mozilla's data-declaration compatibility lint warning (desktop support began in 140). No Android support is claimed. Firefox's manifest name is shortened to “UK Electrician Qualification Checker” because Mozilla lint enforces a 45-character limit; the requested 52-character name remains the product/Chromium name and Elec Training is shown in the popup. The shorter Firefox name needs listing approval.
 
 The ID in the source manifest is deliberately a development placeholder; a permanent company-approved ID is required for release. Chromium covers Chrome, Edge and Opera; this does not imply those browsers have all been manually tested. Android and Safari are outside the initial scope.

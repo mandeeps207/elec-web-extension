@@ -14,7 +14,12 @@ const mode = release ? 'release' : 'development';
 const results = [];
 await mkdir(path.join(root, 'test-results'), { recursive: true });
 const fits = () => document.documentElement.scrollWidth <= window.innerWidth;
-const layout = () => [document.documentElement, document.body, document.querySelector('main')].map((node) => node.getBoundingClientRect().width);
+const layout = () => [
+  document.documentElement.getBoundingClientRect().width,
+  document.body.getBoundingClientRect().width,
+  // The main block fills the body's usable width, excluding its scrollbar.
+  Math.abs(document.querySelector('main').getBoundingClientRect().width - document.body.clientWidth) <= 1,
+];
 async function chromiumTest() {
   const extension = path.join(root, `build/${mode}/chromium`);
   const context = await chromium.launchPersistentContext('', {
@@ -37,7 +42,7 @@ async function chromiumTest() {
     await page.goto(`chrome-extension://${addon.id}/popup/popup.html`);
     await page.locator('.choice').first().waitFor();
     assert.equal(await page.locator('.choice').count(), 5);
-    assert.deepEqual(await page.evaluate(layout), [popupWidth, popupWidth, popupWidth]);
+    assert.deepEqual(await page.evaluate(layout), [popupWidth, popupWidth, true]);
     await page.screenshot({ path: 'test-results/chromium-initial.png', fullPage: true });
     for (const route of routes) {
       const button = page.locator(`[data-route="${route.id}"]`);
@@ -68,7 +73,7 @@ async function chromiumTest() {
     await page.setViewportSize({ width: 820, height: 700 });
     for (const zoom of [1, 1.5, 2]) {
       await page.evaluate(z => new Promise(resolve => chrome.tabs.setZoom(z, resolve)), zoom);
-      assert.deepEqual(await page.evaluate(layout), [popupWidth, popupWidth, popupWidth]);
+      assert.deepEqual(await page.evaluate(layout), [popupWidth, popupWidth, true]);
       assert(await page.evaluate(fits));
     }
     await page.evaluate(() => new Promise((resolve, reject) => chrome.tabs.setZoom(2, () => chrome.runtime.lastError ? reject(new Error(chrome.runtime.lastError.message)) : resolve())));
@@ -119,7 +124,7 @@ async function firefoxTest() {
     await driver.get(`moz-extension://${uuid}/popup/popup.html`);
     await driver.wait(until.elementLocated(By.css('.choice')), 10000);
     assert.equal((await driver.findElements(By.css('.choice'))).length, 5);
-    assert.deepEqual(await driver.executeScript(layout), [popupWidth, popupWidth, popupWidth]);
+    assert.deepEqual(await driver.executeScript(layout), [popupWidth, popupWidth, true]);
     // Work offline after the browser/driver has started.
     await driver.setContext('chrome');
     await driver.executeScript('Services.io.offline = true;');
@@ -140,7 +145,7 @@ async function firefoxTest() {
       await driver.executeScript('gBrowser.selectedBrowser.fullZoom = arguments[0];', zoom);
       assert.equal(await driver.executeScript('return gBrowser.selectedBrowser.fullZoom'), zoom);
       await driver.setContext('content');
-      assert.deepEqual(await driver.executeScript(layout), [popupWidth, popupWidth, popupWidth]);
+      assert.deepEqual(await driver.executeScript(layout), [popupWidth, popupWidth, true]);
       assert(await driver.executeScript(`return (${fits.toString()})()`));
     }
     await driver.findElement(By.css('.choice')).click();

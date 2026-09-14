@@ -42,6 +42,10 @@ No developer account or store fee is needed for these local tests. Browser UI la
 
 ## Manual acceptance checklist in each browser
 
+After the toolbar-width correction, reload the existing installation and close/reopen its popup; a previously open popup may still use the old CSS. Firefox: click **Reload** at `about:debugging#/runtime/this-firefox` for the extension loaded from `build/development/firefox/manifest.json`. Chrome: click the reload arrow at `chrome://extensions` for `build/development/chromium`. If installing fresh, use those same paths. There is no version-number change; the development build remains 0.1.0.
+
+Expect a 380px-wide document in a panel up to 500px tall, with vertical scrolling inside it. Firefox may reserve some of that width for its vertical scrollbar. The updated automation opens and measures real default-zoom action popups in Firefox/Chromium, but manual zoom/display-scale testing remains mandatory. Zooming a regular web page may not change the extension panel; record the actual popup zoom/display scale tested rather than assuming it follows the tab.
+
 - Open the actual toolbar panel. Verify all five buttons and both resource links can be reached by scrolling.
 - Use Tab/Shift+Tab only. Focus must be clearly visible. Enter and Space activate each starting-point button; the result heading receives focus, and reset returns focus to the original choice.
 - Read all five results. Verify the starting position and steps, unresolved wording, caveats and persistent draft warning.

@@ -15,7 +15,7 @@ function inspectPopup(command = {}) {
   if (command.route) doc.querySelector(`[data-route="${command.route}"]`).click();
   if (command.reset) doc.getElementById('reset').click();
   if (command.longText) doc.querySelector('footer a').textContent = 'https://elec.training/' + 'exceptionallylongsegment'.repeat(30);
-  if (command.scroll) panel.scrollTo(0, doc.documentElement.scrollHeight);
+  if (command.scroll) doc.body.scrollTo(0, doc.body.scrollHeight);
   if (command.top) panel.scrollTo(0, 0);
   const root = doc.documentElement;
   return {
@@ -23,11 +23,12 @@ function inspectPopup(command = {}) {
     viewportWidth: panel.innerWidth, viewportHeight: panel.innerHeight,
     rootWidth: root.getBoundingClientRect().width,
     bodyWidth: doc.body.getBoundingClientRect().width,
+    bodyClientWidth: doc.body.clientWidth,
     mainWidth: doc.querySelector('main').getBoundingClientRect().width,
     rootMinWidth: panel.getComputedStyle(root).minWidth,
     bodyMinWidth: panel.getComputedStyle(doc.body).minWidth,
     horizontalOverflow: root.scrollWidth > root.clientWidth + 1 || doc.body.scrollWidth > doc.body.clientWidth + 1,
-    scrollY: panel.scrollY, scrollHeight: root.scrollHeight,
+    scrollY: doc.body.scrollTop, scrollHeight: doc.body.scrollHeight,
     selected: doc.getElementById('selected-label').textContent,
     stepCount: doc.querySelectorAll('#steps li').length,
     focused: doc.activeElement.id || doc.activeElement.dataset.route,
@@ -49,7 +50,8 @@ export async function testNativePopup({ evaluate, open, close }) {
     assert.equal(geometry.count, 1, 'A real action popup must be open');
     assert.equal(geometry.rootWidth, popupWidth);
     assert.equal(geometry.bodyWidth, popupWidth);
-    assert.equal(geometry.mainWidth, popupWidth);
+    assert.equal(geometry.mainWidth, geometry.bodyClientWidth);
+    assert(geometry.mainWidth >= popupWidth - 24, 'Only the vertical scrollbar may consume main width');
     assert.equal(geometry.rootMinWidth, `${popupWidth}px`);
     assert.equal(geometry.bodyMinWidth, `${popupWidth}px`);
     assert(!geometry.horizontalOverflow, 'Native action popup must not scroll horizontally');

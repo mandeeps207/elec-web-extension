@@ -4,6 +4,24 @@ Date: **2026-09-14**. Environment: Windows, Node **22.19.0**, npm **10.9.3**.
 
 **Verdict: Development build ready for review. Public release is blocked pending content, assets and human approval.**
 
+## Toolbar popup defect correction
+
+The user's Chrome and Firefox screenshots were inspected before source editing. Chrome showed a narrow strip with ordinary words broken across many lines; Firefox showed an almost invisible panel. The previous automated run opened the extension document in a regular tab. **Its passing result did not validate native toolbar-panel geometry and did not establish that the toolbar popup was usable.** The user's subsequent manual test exposed that missing coverage.
+
+The exact original rule was `body { width: 400px; max-width: 100vw; margin: 0; overflow-wrap: anywhere; }`. `html` had no explicit width or minimum width. Toolbar panels derive their viewport from the popup document's intrinsic size; the body's viewport-dependent maximum could therefore cap its supposedly fixed width during that measurement. Global `overflow-wrap: anywhere` permitted the observed letter-by-letter wrapping and very small intrinsic text widths. An independent pre-fix `chrome.action.openPopup()` probe measured a real **108px viewport**. The generated Firefox/Chromium CSS matched the source, and both manifests pointed to `popup/popup.html`; this was not a stale build or wrong manifest path. No absolutely positioned children or root percentage-width rule was involved. The reset button's `width: 100%` is an ordinary child width, not the cause. The under-280px media query changed padding/type size after collapse and was removed because it supported the inappropriate 200px-tab test contract.
+
+Final shared sizing: **`html, body { width: 380px; min-width: 380px; margin: 0; }`**. All elements and pseudo-elements use `border-box`. The body is the vertical scroll container with `max-height: 500px; overflow-y: auto`, so Firefox's scrollbar stays inside the fixed-width border box. An intermediate root-scroll implementation correctly failed the new Firefox test because it consumed viewport width and caused horizontal overflow; the body scroll container fixes that issue. No horizontal overflow hiding or font reduction was used. `overflow-wrap: break-word; word-break: normal` preserves normal words while permitting exceptional strings to wrap. The existing choice/link grids have bounded single tracks so long strings cannot expand them. Root layout no longer depends on viewport units, percentages or narrow-screen media queries.
+
+The final **380 × 500px** native panels were measured in both Firefox and Chromium. Main content uses the body's available width: 380px with overlay scrollbars in tested Chromium, 363px with Firefox's 17px scrollbar. All five routes retain this geometry; their bottom resource links remain reachable through vertical scrolling. Native focus movement/return and an artificially long URL-shaped link label passed. Actual Chromium action-popup screenshots (`test-results/chromium-native-initial.png` and `chromium-native-route.png`) were captured from the action popup's own CDP target without viewport overrides and visually inspected. The fixed width keeps ordinary words readable and the scrolled route legible. These are development evidence, not approved store images.
+
+Regression protection now includes a source/build validator requiring the unconditional explicit root pixel-width/min-width rule, rejecting the former viewport cap, percentage/viewport-only widths, calculated viewport sizing, oversized widths, media-query overrides and horizontal clipping. A new unit test exercises these failures. Both generated builds run this audit before packaging. `scripts/native-popup-test.mjs` opens real action popups through `action.openPopup()` and measures only the separate window returned by `extension.getViews({type: 'popup'})`; it explicitly rejects the opener tab as a substitute. Chromium uses a fresh context without viewport emulation. Firefox similarly measures its actual action popup through its extension API.
+
+Regular-tab accessibility/interaction tests are retained and labelled separately. They assert the 380px root/body width at 100%, 150% and 200% tab zoom in a window wide enough for the document. They no longer demand fitting a fixed desktop popup into a forced 200px viewport. **Tab zoom does not alter the action popup's zoom in this environment. Native geometry was tested at default popup zoom only.** Manual retesting of the corrected toolbar builds at 100/150/200% zoom/display scale, real Chrome/Firefox UI behaviour, and screen-reader speech remains required. No manual acceptance or release approval flag was marked complete.
+
+Files changed for this defect: `src/popup/popup.css`, `scripts/lib.mjs`, `scripts/browser-test.mjs`, `tests/core.test.mjs`, this report, `docs/local-testing.md`, `docs/architecture.md`, and `CHANGELOG.md`; added `scripts/native-popup-test.mjs`. Both generated development directories, their two development ZIPs and test evidence were regenerated. Popup HTML/JavaScript, route content, manifests, dependencies and release approval records were not changed.
+
+Official engineering references: [Mozilla popup sizing](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/user_interface/Popups) and [Chrome action popup API and size limits](https://developer.chrome.com/docs/extensions/reference/api/action). Accessed 2026-09-14. The 380 × 500px panel is within the documented 800 × 600 maximum.
+
 ## Delivered behaviour and architecture
 
 One plain HTML/CSS/JavaScript toolbar popup, separate local route-data module, and small Firefox/Chromium Manifest V3 variations. Five accessible choices render useful guidance within the popup. New/Level 2/Level 3 are conditional drafts; site-experience and experienced-worker results are explicitly unresolved. Reset restores focus. Two clean Elec Training links open new tabs.
@@ -18,13 +36,13 @@ Development builds use labelled text branding and generated grey DEV PNGs. No lo
 | --- | --- |
 | `npm install --no-fund` | 0; installed 337 development packages; deprecation notices for `whatwg-encoding` and `eslint`; dependency audit findings below |
 | `npx playwright install chromium` | 0; installed Chromium test browser and supporting binaries |
-| `npm run check:syntax` | 0; all 9 project JavaScript files passed |
-| `npm test` | 0; **8 tests passed, 0 failed, 0 skipped** |
+| `npm run check:syntax` | 0; all 10 project JavaScript files passed |
+| `npm test` | 0; **9 tests passed, 0 failed, 0 skipped**, including root-sizing rejection |
 | `npm run validate` | 0; five routes, source URLs, review metadata, manifests and runtime security checks passed |
 | `npm run build` | 0; Firefox and Chromium development directories produced |
 | `node scripts/validate.mjs --built` | 0; both generated manifests, version consistency, file allowlists and six PNG icon sizes passed |
 | `npm run lint` | 0; Mozilla web-ext **10.6.0**: **0 errors, 0 warnings, 0 notices** |
-| `npm run test:browser` | 0; actual installed Firefox and Chromium extension-document checks passed |
+| `npm run test:browser` | 0; regular-tab checks plus separately opened/measured native Firefox and Chromium action popups passed |
 | `npm run package:dev` | 0; two development ZIPs created, extracted and compared entry-for-entry |
 | `npm run validate:release` | **1, expected**; 26 unsatisfied approval/asset checks; source validation itself passed |
 | `npm run package` | **1, expected**; release blocked before creating a release ZIP |
@@ -39,11 +57,11 @@ Positive end-to-end release packaging cannot be exercised with real release cont
 
 | Browser | Actual automated result |
 | --- | --- |
-| Chromium **153.0.8010.12** | Unpacked extension loaded and enabled in an isolated headless profile. All five routes used offline. Keyboard activation, tab order, focus movement/return, zero popup HTTP traffic, both clean links opening separate tabs with no opener, selection reset on reload and zero JavaScript errors passed. Destination pages were mocked, so link tests did not contact Elec Training. Axe WCAG A/AA checks passed for initial state and all five results. Actual tab zoom 200% and 200px viewport reflow passed. |
-| Firefox **155.0.1** | Actual temporary extension installed in an isolated headless profile. All five routes worked offline, keyboard activation and focus return passed, actual 200% tab zoom had no horizontal overflow, reload reset passed. |
-| Chrome, Edge, Opera | Shared Chromium build prepared; **no manual installation/testing completed in these branded browsers**. Chromium automation does not substitute for those checks. |
+| Chromium **153.0.8010.12** | Unpacked extension in an isolated headless profile. Regular tab: all five routes offline, keyboard/tab order/focus, zero popup HTTP traffic, mocked clean new-tab links with no opener, reset and no JavaScript errors. Axe WCAG A/AA passed initial state/all results. Tab geometry passed at 100/150/200% zoom with adequate window width. Separately opened native action popup: **380 × 500px**, all five routes, focus return, vertical scrolling/footer reachability and exceptional-string wrapping passed; no horizontal overflow. |
+| Firefox **155.0.1** | Temporary extension in an isolated headless profile. Regular tab: all five routes offline, keyboard/focus return, 100/150/200% tab zoom geometry and reset passed. Separately opened native action popup: **380 × 500px**, all five routes, focus return, vertical scrolling/footer reachability and exceptional-string wrapping passed; no horizontal overflow. |
+| Chrome, Edge, Opera | Chromium build prepared. The user's pre-fix Chrome manual test reproduced the defect. **Manual retesting of corrected builds remains required**; automated Chromium does not substitute for these branded browsers. |
 
-These tests open the extension's real popup document in a browser tab. **Native toolbar-panel sizing/scroll behaviour and screen-reader speech have not been manually verified.** Manual acceptance in Firefox, Chrome, Edge and Opera, including native popup zoom, remains required. Automated axe checks are not a claim of complete accessibility compliance.
+The original tests opened only a regular tab and missed the defect. The corrected test suite explicitly separates tab checks from default-zoom native action-popup geometry. **Corrected toolbar-panel behaviour and screen-reader speech have not been manually signed off.** Manual acceptance in Firefox, Chrome, Edge and Opera, including native popup zoom/display scale, remains required. Automated axe checks are not a claim of complete accessibility compliance.
 
 Screenshots were generated under `test-results/`. The initial Chromium state, longest route, both unresolved results and 200% viewport captures were visually inspected; representative Firefox route/zoom captures were also inspected. Visible text and focus states are readable. Long results intentionally scroll. These are internal development evidence, not approved store screenshots.
 
@@ -97,6 +115,7 @@ scripts/package.mjs
 scripts/validate.mjs
 scripts/syntax.mjs
 scripts/browser-test.mjs
+scripts/native-popup-test.mjs
 tests/core.test.mjs
 store-listings/firefox.md
 store-listings/edge.md
