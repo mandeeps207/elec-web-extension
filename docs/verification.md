@@ -1,133 +1,112 @@
-# Implementation and verification report
+# Production release-candidate verification
 
-Date: **2026-09-14**. Environment: Windows, Node **22.19.0**, npm **10.9.3**.
+**Verdict: production release-candidate ZIPs ready for manual acceptance. Not final or store-ready.** Nothing was committed, pushed, published or submitted.
 
-**Verdict: Development build ready for review. Public release is blocked pending content, assets and human approval.**
+Version 1.0.0. The user explicitly authorized candidate construction while keeping unperformed manual checks pending; privacy-policy approval is now recorded. Final release gates remain enforced. Account access and store collateral are submission prerequisites, not candidate/package blockers.
 
-## Toolbar popup defect correction
+## Client authorization and evidence
 
-The user's Chrome and Firefox screenshots were inspected before source editing. Chrome showed a narrow strip with ordinary words broken across many lines; Firefox showed an almost invisible panel. The previous automated run opened the extension document in a regular tab. **Its passing result did not validate native toolbar-panel geometry and did not establish that the toolbar popup was usable.** The user's subsequent manual test exposed that missing coverage.
+Charanjit Mannu, approval date 2026-09-14, written client chat: Mandeep Singh may publish the approved extension and Elec Training branding through his Firefox and Chrome developer accounts on behalf of Elec Training. The user supplied the transcription and reported that changes may be made later if needed. The internal reference is internal/client-authorization.md; the private screenshot was not independently inspected or copied. Neither the internal record nor private chat evidence is embedded in any package. The current agent task expressly prohibits publication/submission.
 
-The exact original rule was `body { width: 400px; max-width: 100vw; margin: 0; overflow-wrap: anywhere; }`. `html` had no explicit width or minimum width. Toolbar panels derive their viewport from the popup document's intrinsic size; the body's viewport-dependent maximum could therefore cap its supposedly fixed width during that measurement. Global `overflow-wrap: anywhere` permitted the observed letter-by-letter wrapping and very small intrinsic text widths. An independent pre-fix `chrome.action.openPopup()` probe measured a real **108px viewport**. The generated Firefox/Chromium CSS matched the source, and both manifests pointed to `popup/popup.html`; this was not a stale build or wrong manifest path. No absolutely positioned children or root percentage-width rule was involved. The reset button's `width: 100%` is an ordinary child width, not the cause. The under-280px media query changed padding/type size after collapse and was removed because it supported the inappropriate 200px-tab test contract.
+Existing wording, bounded referral results, logo and six icons are recorded with attributed approval; no qualification statements or caveats were changed. Content and asset approval are bound to measured hashes in release-status.json. Public product material describes typical UK electrician qualification routes and passes the private-material exclusion check.
 
-Final shared sizing: **`html, body { width: 380px; min-width: 380px; margin: 0; }`**. All elements and pseudo-elements use `border-box`. The body is the vertical scroll container with `max-height: 500px; overflow-y: auto`, so Firefox's scrollbar stays inside the fixed-width border box. An intermediate root-scroll implementation correctly failed the new Firefox test because it consumed viewport width and caused horizontal overflow; the body scroll container fixes that issue. No horizontal overflow hiding or font reduction was used. `overflow-wrap: break-word; word-break: normal` preserves normal words while permitting exceptional strings to wrap. The existing choice/link grids have bounded single tracks so long strings cannot expand them. Root layout no longer depends on viewport units, percentages or narrow-screen media queries.
+## Candidate artifacts
 
-The final **380 × 500px** native panels were measured in both Firefox and Chromium. Main content uses the body's available width: 380px with overlay scrollbars in tested Chromium, 363px with Firefox's 17px scrollbar. All five routes retain this geometry; their bottom resource links remain reachable through vertical scrolling. Native focus movement/return and an artificially long URL-shaped link label passed. Actual Chromium action-popup screenshots (`test-results/chromium-native-initial.png` and `chromium-native-route.png`) were captured from the action popup's own CDP target without viewport overrides and visually inspected. The fixed width keeps ordinary words readable and the scrolled route legible. These are development evidence, not approved store images.
+- dist/release-candidate/elec-training-qualification-checker-firefox-v1.0.0-release-candidate.zip: 187546 bytes; SHA256 1b5c0f56645f325e45519b3c99168bf40dddd1a683a6a1b9d322ffef7ba63bcd
+- dist/release-candidate/elec-training-qualification-checker-chromium-v1.0.0-release-candidate.zip: 187321 bytes; SHA256 ec0dcf5be6fae4d98f2a74bd249b40e7d94854c5d2c6e99a89492f923612741b
 
-Regression protection now includes a source/build validator requiring the unconditional explicit root pixel-width/min-width rule, rejecting the former viewport cap, percentage/viewport-only widths, calculated viewport sizing, oversized widths, media-query overrides and horizontal clipping. A new unit test exercises these failures. Both generated builds run this audit before packaging. `scripts/native-popup-test.mjs` opens real action popups through `action.openPopup()` and measures only the separate window returned by `extension.getViews({type: 'popup'})`; it explicitly rejects the opener tab as a substitute. Chromium uses a fresh context without viewport emulation. Firefox similarly measures its actual action popup through its extension API.
+Both candidates contain exactly 12 allowlisted files, with manifest.json at ZIP root:
 
-Regular-tab accessibility/interaction tests are retained and labelled separately. They assert the 380px root/body width at 100%, 150% and 200% tab zoom in a window wide enough for the document. They no longer demand fitting a fixed desktop popup into a forced 200px viewport. **Tab zoom does not alter the action popup's zoom in this environment. Native geometry was tested at default popup zoom only.** Manual retesting of the corrected toolbar builds at 100/150/200% zoom/display scale, real Chrome/Firefox UI behaviour, and screen-reader speech remains required. No manual acceptance or release approval flag was marked complete.
+- assets/icons/icon-128.png
+- assets/icons/icon-16.png
+- assets/icons/icon-32.png
+- assets/icons/icon-48.png
+- assets/icons/icon-64.png
+- assets/icons/icon-96.png
+- assets/logo.png
+- data/qualification-routes.js
+- manifest.json
+- popup/popup.css
+- popup/popup.html
+- popup/popup.js
 
-Files changed for this defect: `src/popup/popup.css`, `scripts/lib.mjs`, `scripts/browser-test.mjs`, `tests/core.test.mjs`, this report, `docs/local-testing.md`, `docs/architecture.md`, and `CHANGELOG.md`; added `scripts/native-popup-test.mjs`. Both generated development directories, their two development ZIPs and test evidence were regenerated. Popup HTML/JavaScript, route content, manifests, dependencies and release approval records were not changed.
+No test files, scripts, dependencies, docs, source-control files, approval records, private chat evidence, credentials or screenshots are packaged. Text entries were scanned after extraction: no DEV/development, draft, placeholder, unapproved, unresolved or not-for-release presentation. Candidate labels are on the artifact/folder names; the runtime is the production presentation, with official local artwork and no development badge. Both archives were independently rebuilt twice and have identical bytes.
 
-Official engineering references: [Mozilla popup sizing](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/user_interface/Popups) and [Chrome action popup API and size limits](https://developer.chrome.com/docs/extensions/reference/api/action). Accessed 2026-09-14. The 380 × 500px panel is within the documented 800 × 600 maximum.
+Load Firefox from build/release-candidate/firefox/manifest.json and Chrome from build/release-candidate/chromium. Disable the development copy to avoid confusion, and reload/reopen after changing builds. These are local acceptance candidates, not instructions to submit.
 
-## Delivered behaviour and architecture
+## Metadata, privacy and security
 
-One plain HTML/CSS/JavaScript toolbar popup, separate local route-data module, and small Firefox/Chromium Manifest V3 variations. Five accessible choices render useful guidance within the popup. New/Level 2/Level 3 are conditional drafts; site-experience and experienced-worker results are explicitly unresolved. Reset restores focus. Two clean Elec Training links open new tabs.
+Firefox name: UK Electrician Qualification Checker. Chromium name: UK Electrician Qualification Checker – Elec Training. Version: 1.0.0. Permanent Firefox ID: qualification-checker@elec.training. The separate development build retains its temporary ID.
 
-No runtime dependencies or requested browser permissions. No storage, telemetry, content injection, remote scripts/fonts, background scripts/service workers, cookies or network request APIs. A restrictive CSP blocks connections and external executable resources. Firefox declares no data collection/transmission.
+Homepage/support: https://elec.training/. Support email: enquiry@elec.training. Privacy-policy URL: https://elec.training/privacy-policy/. No phone/address was added. Charanjit Mannu explicitly approved this existing URL for initial Firefox/Chrome submissions on 2026-09-14. Company approval is satisfied. The page still lacks extension-specific wording; adding it is a future improvement, not a package blocker.
 
-Development builds use labelled text branding and generated grey DEV PNGs. No logo was invented. Release builds require approved official assets; they exclude development-only material through fixed file allowlists and approval gates.
+Exact candidate manifests request no permissions/host permissions, background script/service worker or content scripts. The inspected runtime uses no storage, analytics, telemetry, remote scripts/fonts or background network APIs. Local modules/assets only; textContent/DOM creation, approved clean HTTPS links with noopener/noreferrer, and the restrictive CSP including connect-src 'none'. Firefox declares required: ["none"]. No secrets were found in the inspected allowlisted text entries. Extension privacy facts are separate from the linked website's data practices.
 
-## Exact commands and final results
+The logo is the supplied 837 x 252 PNG; square icons are supplied 16/32/48/64/96/128px PNGs. All packaged assets match approved source bytes. Source and both candidate popup stylesheets match exactly.
 
-| Command | Exit/result |
+## Automated checks on exact candidate output
+
+Environment: Windows, Node 22.19.0, npm 10.9.3; Chromium 153.0.8010.12 and Firefox 155.0.1. Candidate browser report: 2026-09-14T18:20:24.767Z.
+
+| Check | Result |
 | --- | --- |
-| `npm install --no-fund` | 0; installed 337 development packages; deprecation notices for `whatwg-encoding` and `eslint`; dependency audit findings below |
-| `npx playwright install chromium` | 0; installed Chromium test browser and supporting binaries |
-| `npm run check:syntax` | 0; all 10 project JavaScript files passed |
-| `npm test` | 0; **9 tests passed, 0 failed, 0 skipped**, including root-sizing rejection |
-| `npm run validate` | 0; five routes, source URLs, review metadata, manifests and runtime security checks passed |
-| `npm run build` | 0; Firefox and Chromium development directories produced |
-| `node scripts/validate.mjs --built` | 0; both generated manifests, version consistency, file allowlists and six PNG icon sizes passed |
-| `npm run lint` | 0; Mozilla web-ext **10.6.0**: **0 errors, 0 warnings, 0 notices** |
-| `npm run test:browser` | 0; regular-tab checks plus separately opened/measured native Firefox and Chromium action popups passed |
-| `npm run package:dev` | 0; two development ZIPs created, extracted and compared entry-for-entry |
-| `npm run validate:release` | **1, expected**; 26 unsatisfied approval/asset checks; source validation itself passed |
-| `npm run package` | **1, expected**; release blocked before creating a release ZIP |
-| `npm audit --json` | **1**; 3 high-severity development dependency findings through `web-ext → addons-linter → image-size` |
-| `npm audit --omit=dev` | 0; **0 vulnerabilities**; no production dependencies |
+| npm run check:syntax / package syntax step | PASS: 10 JavaScript files |
+| npm test / package unit step | PASS: 14 tests, 0 failures |
+| npm run validate | PASS: source routes, URLs, manifests, runtime security |
+| npm run package:candidate, twice | PASS: both production candidates, all mandatory production checks before ZIP creation |
+| npm run validate:candidate / generated validation in package pipeline | PASS: production manifests/assets/runtime allowlist/root sizing and technical/content gates |
+| Mozilla lint on candidate Firefox | PASS: 0 errors, 0 warnings, 0 notices |
+| Candidate Chromium tab | PASS: 5 routes offline, keyboard/focus/reset, no popup HTTP traffic/JS errors, safe new tabs, axe WCAG A/AA on initial screen and all results |
+| Candidate native Chromium action popup | PASS: actual separate action popup, 5 choices/routes, dimensions, scrolling, exceptional strings and reset focus |
+| Candidate Firefox tab/native action popup | PASS: actual installed extension, 5 routes, focus/reset, offline use and native dimensions/scrolling |
+| Tab zoom 100/150/200% | PASS in both engines; this does not validate native popup zoom |
+| npm audit --omit=dev --json | PASS: 0 vulnerabilities; no production dependencies |
+| npm audit --json | Exit 1: 3 high development-tool findings via web-ext/addons-linter/image-size; tooling is excluded from packages |
+| Independent candidate rebuild/extraction verification | PASS: identical ZIP hashes, 12 entries each, root manifest, production metadata/ID, exact source assets/CSS, excluded-text scan |
+| Final npm run validate:release / npm run package | BLOCKED as intended: pending human acceptance listed below |
 
-The tests check all five IDs and labels, meaningful steps or unresolved status, sources/review metadata, URL HTTPS/domain/tracking restrictions, manifest capabilities/version, unsafe runtime patterns, release rejection (including approved-but-unresolved data), generated package allowlists/icons, root manifests, byte-for-byte ZIP contents and repeat-build determinism. They explicitly reject development builds when validated as release builds.
+The candidate path supports deferred human visual/manual checks; company privacy approval has now been recorded. It does not skip source validation, approved content/asset hashes, runtime privacy/security audit, CSP/manifest checks, lint, accessibility/native tests or package allowlists. Unit tests prove stale content/source/asset evidence still rejects candidates and that account setup does not affect package gating.
 
-Positive end-to-end release packaging cannot be exercised with real release content until approvals/assets exist. The negative gate paths and development packaging paths are tested. No approval flags were fabricated for testing.
+## Native geometry and visual check
 
-## Browser evidence
+Before compact layout, both native panels were 380 x 500px, with 938px of initial Chromium content and 950px in Firefox. Current candidate Chromium initial panel: 380 x 486px, content 487px; Firefox: 380 x 487px, content 487px. Both show all five choices without initial scrolling or horizontal overflow. Integer height rounding differs by about one pixel in Chromium.
 
-| Browser | Actual automated result |
-| --- | --- |
-| Chromium **153.0.8010.12** | Unpacked extension in an isolated headless profile. Regular tab: all five routes offline, keyboard/tab order/focus, zero popup HTTP traffic, mocked clean new-tab links with no opener, reset and no JavaScript errors. Axe WCAG A/AA passed initial state/all results. Tab geometry passed at 100/150/200% zoom with adequate window width. Separately opened native action popup: **380 × 500px**, all five routes, focus return, vertical scrolling/footer reachability and exceptional-string wrapping passed; no horizontal overflow. |
-| Firefox **155.0.1** | Temporary extension in an isolated headless profile. Regular tab: all five routes offline, keyboard/focus return, 100/150/200% tab zoom geometry and reset passed. Separately opened native action popup: **380 × 500px**, all five routes, focus return, vertical scrolling/footer reachability and exceptional-string wrapping passed; no horizontal overflow. |
-| Chrome, Edge, Opera | Chromium build prepared. The user's pre-fix Chrome manual test reproduced the defect. **Manual retesting of corrected builds remains required**; automated Chromium does not substitute for these branded browsers. |
+Width/min-width stays 380px on html/body, border-box throughout, 500px body scroll cap. Logo width 112px, product heading 22px, readable 14px body/labels, 44px buttons, 6px gaps and visible 3px focus outlines. Results replace the introduction and retain the selected position, steps, caveats, reset and resource links. Normal word breaking is preserved; long exceptional strings wrap safely. No clipping, CSS transforms or zoom reduction was used.
 
-The original tests opened only a regular tab and missed the defect. The corrected test suite explicitly separates tab checks from default-zoom native action-popup geometry. **Corrected toolbar-panel behaviour and screen-reader speech have not been manually signed off.** Manual acceptance in Firefox, Chrome, Edge and Opera, including native popup zoom/display scale, remains required. Automated axe checks are not a claim of complete accessibility compliance.
+| Route | Chromium content height | Firefox content height | Scrolls |
+| --- | --- | --- | --- |
+| new | 737px | 737px | Yes, complete content and footer reachable |
+| level-2 | 682px | 683px | Yes, complete content and footer reachable |
+| level-3 | 628px | 628px | Yes, complete content and footer reachable |
+| site-experience | 498px | 498px | No |
+| experienced | 498px | 498px | No |
 
-Screenshots were generated under `test-results/`. The initial Chromium state, longest route, both unresolved results and 200% viewport captures were visually inspected; representative Firefox route/zoom captures were also inspected. Visible text and focus states are readable. Long results intentionally scroll. These are internal development evidence, not approved store screenshots.
+The production initial screenshot was visually inspected and shows official branding with no development badge. Screenshots named chromium-initial/route and firefox-route are regular-tab evidence, not native store screenshots. Native geometry is separately measured via action.openPopup and extension.getViews({type: 'popup'}); the opener tab is explicitly rejected as a substitute. Earlier tab-only passing tests did not validate intrinsic native toolbar sizing.
 
-## Issues found and resolved or retained
+## Actual manual evidence and remaining acceptance
 
-- Initial Mozilla lint failed because the requested full product name is **52 characters**, beyond its **45-character** name limit. Firefox now uses **UK Electrician Qualification Checker** (with a DEV prefix in development). Chromium keeps the requested full name. The shorter Firefox name needs company approval.
-- Initial lint warned about Firefox data-declaration compatibility. The minimum Firefox version is now **142.0**, and lint passes with warnings treated as errors. Desktop support for the declaration starts earlier, but this conservative minimum avoids the linter's cross-platform warning. No Android compatibility claim is made.
-- Initial Firefox automation rejected the system-access argument in browser capabilities. It was moved to the geckodriver service argument as documented by Mozilla; the final test passed.
-- Playwright's full-page screenshot at non-default tab zoom clipped its capture. The test now captures the physical viewport through CDP; layout/reflow assertions remain independent of screenshots. Final zoom capture was inspected.
-- Python was unavailable during the first brief-extraction attempt; complete Word XML paragraph text was successfully read using .NET ZIP/XML support instead. No source document was changed.
-- Both official logo URL downloads returned HTTP 403; no asset was downloaded/used. The design-team request is in `src/assets/README.md`.
-- The development audit flags image parser denial-of-service advisories [GHSA-w3rx-r6r6-pgpr](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr) and [GHSA-5p2g-fcmc-qvqq](https://github.com/advisories/GHSA-5p2g-fcmc-qvqq). `npm view image-size version` returned **2.0.2**, still affected. npm suggested downgrading web-ext to 5.5.0; that was not applied because current Manifest V3/data-declaration validation is needed. The tools only lint this project's local files and are excluded from packages. Recheck upstream tooling before release.
+The user now reports testing the exact version 1.0.0 candidate packages in Firefox, Chrome, Edge and Opera. Each passed the native toolbar popup, all five routes, links/reset, keyboard navigation, 150%/200% zoom and no horizontal overflow. Final logo, icon, wording and visual presentation were explicitly approved. These reports are tied to the recorded unchanged candidate hashes. Browser versions and test dates were not supplied.
 
-## Produced builds and archives
+The user explicitly confirmed that Windows display-scaling and NVDA screen-reader testing were not performed. The earlier bracketed entries were placeholders. Both are recorded NOT COMPLETED. They are mandatory internal final-release gates in scripts/lib.mjs, while candidate construction remains allowed. This is a project acceptance policy, not a claim that either store specifically mandates NVDA. Runtime and approved content remain unchanged.
 
-- `build/development/firefox/` — load `manifest.json` temporarily in Firefox.
-- `build/development/chromium/` — select this directory for unpacked loading in Chrome, Edge or Opera.
-- `dist/development/elec-training-qualification-checker-firefox-v0.1.0-development.zip`
-- `dist/development/elec-training-qualification-checker-chromium-v0.1.0-development.zip`
+See internal/manual-acceptance.md and release-status.json. Final store-upload ZIP creation waits for these internal acceptance checks. Candidate artifacts remain available and retain their prior hashes.
 
-Each development archive contains exactly 11 files: root `manifest.json`, three popup files, one route-data module and six PNG icons. The runtime is readable and the archives are deterministic. **No release ZIPs were produced.**
+## Submission prerequisites
 
-## Remaining release prerequisites
+Firefox: access to Mandeep Singh's authorized developer account, current account/security requirements, final Firefox listing/screenshots/privacy answers and acceptance evidence, then Mozilla review/signing through the appropriate submission workflow when separately instructed. Use the confirmed permanent ID. A company-owned account is not required by the client's authorization.
 
-Charanjit must approve the exact qualification wording, resolve the two uncertain outcomes and confirm certificate equivalence, relevant prerequisites and UK nation coverage. The company must supply approved logo/icon PNGs (16/32/48/64/96/128px icons), provenance, permanent Firefox ID, confirmed support/privacy URLs, screenshot/listing approval including the shorter Firefox name, four manual browser checks and final sign-off. Evidence must match the content/source hashes in `release-status.json`.
+Chrome: access to Mandeep Singh's authorized developer account and any required registration/security steps, final Chrome listing/screenshots/privacy answers and acceptance evidence, then submission of the Chromium package when separately instructed. No credentials were requested/stored; no account creation, payment or submission occurred. Verify current store forms at submission time rather than assuming historical requirements.
 
-Any later account verification, payment or store submission needs separate authorization. No accounts, payments, messages to others, commits, pushes or submissions were made. Safari remains a separate phase.
+Current source SHA256: 1c1258cc551f00ff9cae3abdc3196b1f4a60a77620dcae797379b41c0d19f5fb
 
-## Complete repository file inventory
+Current approved content SHA256: baa0da08646a9a8f8ffb22bd96eec94ac68764aa4bb1aa7dac17b634a503596c
 
-All files below were created in the previously empty workspace; no pre-existing repository files were modified.
+Asset, candidate ZIP and browser-report hashes are recorded in release-status.json and test-results/candidate-package-results.json. Human acceptance is not inferred from these computed hashes.
 
-```text
-.gitignore
-package.json
-package-lock.json
-release-status.json
-README.md
-CONTENT_APPROVAL.md
-CHANGELOG.md
-src/popup/popup.html
-src/popup/popup.css
-src/popup/popup.js
-src/data/qualification-routes.js
-src/assets/README.md
-manifests/firefox.json
-manifests/chromium.json
-scripts/lib.mjs
-scripts/build.mjs
-scripts/package.mjs
-scripts/validate.mjs
-scripts/syntax.mjs
-scripts/browser-test.mjs
-scripts/native-popup-test.mjs
-tests/core.test.mjs
-store-listings/firefox.md
-store-listings/edge.md
-store-listings/chrome.md
-store-listings/opera.md
-privacy/privacy-disclosure.md
-docs/implementation-plan.md
-docs/architecture.md
-docs/content-sources.md
-docs/local-testing.md
-docs/submission-checklist.md
-docs/verification.md
-```
+## Historical intrinsic-width defect
 
-Generated/ignored files: each of `build/development/{firefox,chromium}/` contains `manifest.json`, `popup/popup.html`, `popup/popup.css`, `popup/popup.js`, `data/qualification-routes.js`, and `assets/icons/icon-{16,32,48,64,96,128}.png`. The two ZIP paths are listed above. `test-results/` contains `browser-results.json`, `chromium-initial.png`, `chromium-{new,level-2,level-3,site-experience,experienced}.png`, `chromium-200-percent.png`, `firefox-{new,level-2,level-3,site-experience,experienced}.png` and `firefox-200-percent.png`. `node_modules/` is local development tooling, excluded from source/package deliverables.
+The original body width: 400px with max-width: 100vw depended circularly on native popup viewport measurement, while html had no fixed width. Global overflow-wrap: anywhere allowed very small intrinsic text widths; a real Chromium probe measured 108px. The correction established unconditional 380px width/min-width on both roots and normal word wrapping, with vertical scrolling contained inside the body. Source/build tests reject viewport/percentage sizing, sizing overrides and horizontal overflow masking. Both manifests pointed to popup/popup.html and generated CSS matched the source.
+
+## Privacy approval update - 2026-09-14
+
+Charanjit Mannu explicitly approved the existing https://elec.training/privacy-policy/ URL for initial Firefox and Chrome submissions through written client chat, as transcribed by the user. The company approval requirement is now satisfied. The page still lacks extension-specific wording; a dedicated extension section is recommended for the future and is not a package blocker. This supersedes earlier pending-privacy statements in this document. No website edit or manual testing is implied. All unperformed browser, zoom, display-scaling, screen-reader and final visual checks remain pending. Private evidence stays outside the packages.

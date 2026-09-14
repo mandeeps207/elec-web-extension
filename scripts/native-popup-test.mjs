@@ -29,6 +29,12 @@ function inspectPopup(command = {}) {
     bodyMinWidth: panel.getComputedStyle(doc.body).minWidth,
     horizontalOverflow: root.scrollWidth > root.clientWidth + 1 || doc.body.scrollWidth > doc.body.clientWidth + 1,
     scrollY: doc.body.scrollTop, scrollHeight: doc.body.scrollHeight,
+    bodyClientHeight: doc.body.clientHeight,
+    choices: [...doc.querySelectorAll('.choice')].map(button => {
+      const rect = button.getBoundingClientRect();
+      const style = panel.getComputedStyle(button);
+      return { top: rect.top, bottom: rect.bottom, height: rect.height, fontSize: parseFloat(style.fontSize), wordBreak: style.wordBreak };
+    }),
     selected: doc.getElementById('selected-label').textContent,
     stepCount: doc.querySelectorAll('#steps li').length,
     focused: doc.activeElement.id || doc.activeElement.dataset.route,
@@ -61,6 +67,14 @@ export async function testNativePopup({ evaluate, open, close }) {
   };
   try {
     check(initial);
+    assert(initial.scrollHeight <= initial.bodyClientHeight + 1, 'Initial screen must not scroll vertically');
+    assert(initial.viewportHeight <= 500, 'Initial screen must fit within 500px');
+    for (const choice of initial.choices) {
+      assert(choice.top >= 0 && choice.bottom <= initial.viewportHeight, 'Every choice must be visible without scrolling');
+      assert(choice.height >= 44 && choice.height <= 48, 'Choice must retain a comfortable touch target');
+      assert(choice.fontSize >= 14 && choice.wordBreak === 'normal');
+    }
+    const resultGeometry = [];
     for (const route of routes) {
       await evaluate(inspectPopup, { route: route.id });
       // Read after layout has had a chance to resize for changed route content.
@@ -72,13 +86,16 @@ export async function testNativePopup({ evaluate, open, close }) {
       assert.equal(geometry.focused, 'result-heading');
       await evaluate(inspectPopup, { scroll: true });
       const bottom = await evaluate(inspectPopup, {});
-      assert(bottom.scrollY > 0, 'Long results must be vertically scrollable');
+      if (geometry.scrollHeight > geometry.bodyClientHeight + 1) assert(bottom.scrollY > 0, 'Long results must be vertically scrollable');
       assert(bottom.footerBottom <= bottom.viewportHeight + 1, 'Footer must be reachable');
+      resultGeometry.push({ id: route.id, viewportHeight: geometry.viewportHeight, scrollHeight: geometry.scrollHeight, scrolls: bottom.scrollY > 0 });
       const reset = await evaluate(inspectPopup, { reset: true });
       assert.equal(reset.focused, route.id);
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
+    await evaluate(inspectPopup, { route: routes[0].id });
     const longText = await evaluate(inspectPopup, { longText: true });
     check(longText);
-    return { result: 'PASS', method: 'action.openPopup + extension.getViews({type: popup}); no viewport emulation', initial, routes: 5, verticalScroll: 'PASS', exceptionalString: 'PASS', zoomScope: 'Default action-popup zoom only; browser-tab zoom does not change this popup. Manual zoom/display-scale checks remain required.' };
+    return { result: 'PASS', method: 'action.openPopup + extension.getViews({type: popup}); no viewport emulation', initial, resultGeometry, routes: 5, verticalScroll: 'PASS', exceptionalString: 'PASS', zoomScope: 'Default action-popup zoom only; browser-tab zoom does not change this popup. Manual zoom/display-scale checks remain required.' };
   } finally { await close(); }
 }

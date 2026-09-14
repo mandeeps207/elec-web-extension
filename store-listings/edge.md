@@ -1,6 +1,6 @@
 # Edge listing draft
 
-**INTERNAL DRAFT — not approved for submission.** Review again after qualification content and branding approval. Remove this internal note only in an approved submission copy.
+**INTERNAL DRAFT — not approved for submission.** Existing wording and artwork approval is attributed to Charanjit Mannu; final listing and compact-layout screenshots remain pending. Remove this internal note only in an approved submission copy.
 
 ## Extension name
 
@@ -23,8 +23,11 @@ No login is needed and selections are not saved. This is an informational tool, 
 - Intended audience: UK users exploring electrical training, diploma holders, people gaining site experience and experienced workers seeking route clarification.
 - Main functionality: choose a starting point, read local guidance/caveats, reset, open two official resources.
 - Website: https://elec.training/
-- Support URL: **PENDING — confirm official Elec Training support URL.**
-- Privacy-policy URL: **PENDING — confirm an official policy covering this extension and whether this store requires its URL.**
+- Support URL: https://elec.training/
+- Support email: enquiry@elec.training
+- Privacy-policy URL: https://elec.training/privacy-policy/ (company approved this existing URL for initial Firefox/Chrome submissions; extension-specific page wording is a future improvement)
+- Local prepared version: 1.0.0; no public release yet.
+- Display brand: Elec Training. Legal publisher/copyright ownership and authorized store-account details must be confirmed; no legal entity or copyright statement has been invented.
 - Suggested Mozilla slug: `electrician-qualification-route-uk` (for Mozilla only; availability unverified). Alternative: `uk-electrician-qualification-checker`.
 - Package: Chromium release ZIP, only after release gates pass. Never upload a development archive.
 
@@ -45,3 +48,7 @@ Required local artwork: official logo PNG and approved square icon PNGs at 16, 3
 
 Map these facts to the actual store questionnaire; do not invent answers for new fields. Company approval and the final runtime verification remain mandatory.
 
+
+## Package and submission handoff
+
+Prepared version 1.0.0 uses the existing approved wording and supplied official artwork. The permanent Firefox release ID is qualification-checker@elec.training. Company approval of the existing privacy URL for initial Firefox/Chrome submissions is recorded. Manual technical acceptance and final visual evidence remain final-release gates. Clearly labelled production candidates may be constructed for that acceptance after all technical/content/asset/package checks pass. Account credentials/setup and store-specific listing/screenshots are submission prerequisites, not ZIP blockers. Do not upload development packages or internal test screenshots.

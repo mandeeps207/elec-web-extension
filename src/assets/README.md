@@ -1,16 +1,14 @@
-# Official branding required
+﻿# Supplied extension branding
 
-No official graphics were supplied. On 2026-09-14 the homepage HTML referenced these official logo assets, but both downloads returned HTTP 403:
+The user supplied the Elec Training logo and six icon PNGs locally on 2026-09-14 for use in the development extension. The logo and 128px icon were visually inspected; PNG signatures and all dimensions were checked.
 
-- https://elec.training/wp-content/uploads/2023/09/Elec-Training-Logo-scaled.jpg
-- https://elec.training/wp-content/uploads/2023/09/Elec-Training-Logo-scaled-e1772290125555.jpg
+- `logo.png`: 837 by 252 pixels, displayed at 170 CSS pixels wide with its original aspect ratio.
+- `icons/icon-{16,32,48,64,96,128}.png`: square PNGs at the corresponding sizes.
 
-No downloaded logo is used and no company logo has been redrawn. Development builds generate plain grey DEV icons and show a text branding placeholder. The current navy/orange interface palette is provisional, not a claimed official brand palette.
+Both development builds copy these exact files. No graphic was redrawn, resized or replaced. The build validator verifies packaged bytes against source assets. Missing files fail the build instead of silently reverting to placeholders. This README is excluded from packages.
 
-Request from the design team:
+The user subsequently replaced all seven PNGs with transparent-background versions. Dimensions are unchanged; each file decodes successfully as RGBA and has a fully transparent corner pixel (alpha 0). Both development directories and ZIPs were rebuilt from the replacements, with package/source byte comparisons and Mozilla lint validation.
 
-- Approved official logo as transparent PNG (and original SVG for retention by the team). Save the approved runtime PNG here as `logo.png`; it displays at 170 CSS pixels wide, so supply at least 340 pixels wide with suitable padding.
-- Approved square extension icon PNGs at 16, 32, 48, 64, 96 and 128 pixels, named `icons/icon-16.png`, etc. Small sizes must remain legible. Supply a 512px master for later store artwork.
-- Confirmed brand colours, approved initial/result screenshots, and platform-specific promotional artwork after checking each submission form.
+The development extension retains its [DEV] name and Development preview badge. The user reports boss approval of these supplied transparent files; their exact hashes and provenance are recorded in release-status.json. Final compact-layout screenshots and attributed release sign-off remain pending.
 
-Record provenance and the SHA256 of each approved PNG in `release-status.json`. A renamed DEV bitmap is explicitly rejected. Human approval of brand authenticity is still required; a file hash cannot establish ownership. Runtime packages include only allowlisted PNGs, never this document.
+Historical context: initial downloads of website logo JPGs returned HTTP 403. Earlier builds used text branding and generated DEV icons; those placeholders are no longer used in builds.

@@ -77,18 +77,25 @@ export async function sourceDigest() {
   for (const name of names.sort()) { hash.update(name); hash.update(await readFile(path.join(root, name))); }
   return hash.digest('hex');
 }
-export async function releaseErrors(status, data = routes) {
+export async function releaseErrors(status, data = routes, { candidate = false } = {}) {
   status ??= await json('release-status.json');
   const errors = [];
   for (const route of data) {
-    if (route.review.status !== 'approved' || route.review.approvedBy !== 'Charanjit' || !/^\d{4}-\d{2}-\d{2}$/.test(route.review.approvedOn ?? '') || route.state !== 'resolved') errors.push(`Route ${route.id} requires Charanjit approval and resolution`);
+    if (route.review.status !== 'approved' || !['Charanjit', 'Charanjit Mannu'].includes(route.review.approvedBy) || !/^\d{4}-\d{2}-\d{2}$/.test(route.review.approvedOn ?? '') || route.state !== 'resolved') errors.push(`Route ${route.id} requires Charanjit approval and resolution`);
   }
-  for (const key of ['briefReviewed', 'officialBrandingApproved', 'screenshotsApproved', 'listingsApproved']) if (status[key] !== true) errors.push(`${key} is not confirmed`);
+  const confirmations = ['briefReviewed', 'officialBrandingApproved', 'firefoxNameApproved'];
+  // User explicitly permits production candidates pending these human checks.
+  // Final release keeps them; runtime privacy/security audits apply in both modes.
+  if (!candidate) confirmations.push('privacyExtensionCoverageConfirmed');
+  for (const key of confirmations) if (status[key] !== true) errors.push(`${key} is not confirmed`);
   if (!status.assetProvenance) errors.push('Official asset provenance is missing');
   for (const key of ['supportUrl', 'privacyUrl']) { try { cleanUrl(status[key]); } catch { errors.push(`${key} must be a confirmed clean Elec Training HTTPS URL`); } }
   if (!status.firefoxId || /invalid|placeholder|development/i.test(status.firefoxId) || !/^[^\s@]+@[^\s@]+$/.test(status.firefoxId)) errors.push('Confirm a permanent Firefox extension ID');
-  for (const browser of ['firefox', 'chrome', 'edge', 'opera']) if (status.manualBrowsers?.[browser] !== true) errors.push(`Manual ${browser} test is not confirmed`);
+  if (!candidate) for (const browser of ['firefox', 'chrome', 'edge', 'opera']) if (status.manualBrowsers?.[browser] !== true) errors.push(`Manual ${browser} test is not confirmed`);
+  if (!candidate && status.manualEvidence?.windowsDisplayScaling !== true) errors.push('Manual Windows display-scaling test details are not confirmed');
+  if (!candidate && status.manualEvidence?.screenReader !== true) errors.push('Manual NVDA screen-reader pass is not confirmed');
   if (!status.charanjitSignOff) errors.push('Final Charanjit sign-off evidence is missing');
+  if (!candidate && status.approvedSourceSha256 !== await sourceDigest()) errors.push('Final visual/source approval hash is missing or stale');
   if (status.approvedContentSha256 !== sha256(await read('src/data/qualification-routes.js'))) errors.push('Approved content hash is missing or stale');
   if (!status.validationEvidence || status.validatedSourceSha256 !== await sourceDigest()) errors.push('Validation evidence/source hash is missing or stale');
   for (const name of ['logo.png', ...sizes.map((size) => `icons/icon-${size}.png`)]) {
@@ -107,9 +114,17 @@ export async function releaseErrors(status, data = routes) {
   }
   return errors;
 }
-export async function requireRelease() {
-  const errors = await releaseErrors();
+export async function requireRelease(candidate = false) {
+  const errors = await releaseErrors(undefined, routes, { candidate });
   if (errors.length) throw new Error(`Release blocked:\n- ${errors.join('\n- ')}`);
+}
+// Store collateral and account access concern submission, never ZIP generation.
+// Manual technical acceptance, privacy and source/asset gates remain above.
+export function submissionErrors(status) {
+  const errors = [];
+  for (const key of ['screenshotsApproved', 'listingsApproved']) if (status[key] !== true) errors.push(`${key} is not confirmed`);
+  for (const browser of ['firefox', 'chrome']) if (status.submissionAccounts?.[browser]?.ready !== true) errors.push(`${browser} developer-account access and submission setup remain pending`);
+  return errors;
 }
 export function validatePopupSizing(css) {
   // Intentionally narrow policy for this small, plain stylesheet. Require one
@@ -152,7 +167,7 @@ export async function validateBuild(directory, target, release = false) {
   const manifest = await json(`${directory}/manifest.json`);
   validateManifest(manifest, target, (await json('package.json')).version);
   const expected = ['manifest.json', ...runtimeFiles, ...sizes.map((size) => `assets/icons/icon-${size}.png`)];
-  if (release) expected.push('assets/logo.png');
+  expected.push('assets/logo.png');
   const actual = (await files(directory)).map((name) => name.slice(directory.length + 1));
   assert.deepEqual(actual.sort(), expected.sort(), 'Unexpected/missing package files');
   for (const [size, name] of Object.entries(manifest.icons)) {
@@ -160,17 +175,22 @@ export async function validateBuild(directory, target, release = false) {
     const bytes = await readFile(path.join(root, directory, name));
     assert.equal(bytes.readUInt32BE(16), Number(size));
     assert.equal(bytes.readUInt32BE(20), Number(size));
-    if (release) assert(!bytes.equals(developmentIcon(Number(size))));
+    assert(!bytes.equals(developmentIcon(Number(size))), 'Use supplied icons, not generated DEV placeholders');
+    assert.deepEqual(bytes, await readFile(path.join(root, 'src', name)), 'Packaged icon must match supplied source');
   }
+  const logo = await readFile(path.join(root, directory, 'assets/logo.png'));
+  assert.equal(logo.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+  assert(logo.readUInt32BE(16) > 0 && logo.readUInt32BE(20) > 0);
+  assert.deepEqual(logo, await readFile(path.join(root, 'src/assets/logo.png')));
   assert.deepEqual(Object.keys(manifest.icons).map(Number).sort((a, b) => a - b), sizes);
   assert.deepEqual(manifest.action.default_icon, { 16: manifest.icons[16], 32: manifest.icons[32] });
   for (const file of runtimeFiles) auditRuntime(file, await read(`${directory}/${file}`));
   const html = await read(`${directory}/popup/popup.html`);
+  assert(html.includes('src="../assets/logo.png" alt="Elec Training"'), 'Popup must display the local supplied logo');
   if (release) {
-    assert(!/placeholder|development branding/i.test(html));
-    assert(!/development/i.test(manifest.name));
-    const content = await read(`${directory}/data/qualification-routes.js`);
-    assert(!/unapproved|"state": "draft"|"state": "unresolved"/.test(content));
+    for (const file of ['manifest.json', ...runtimeFiles]) {
+      assert(!/\b(?:DEV|development|draft|placeholder|unapproved|unresolved)\b|not for public release|example\.invalid/i.test(await read(`${directory}/${file}`)), `Non-production text in ${file}`);
+    }
   } else assert(manifest.name.startsWith('[DEV] '));
   return actual;
 }

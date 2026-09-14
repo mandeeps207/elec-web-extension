@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UK Electrician Qualification Checker",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Explore typical next steps in your electrical training with Elec Training.",
   "homepage_url": "https://elec.training/",
   "action": { "default_title": "Elec Training qualification checker", "default_popup": "popup/popup.html" },

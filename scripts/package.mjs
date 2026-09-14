@@ -17,17 +17,19 @@ function runNode(args) {
   const result = spawnSync(process.execPath, args, { cwd: root, stdio: 'inherit' });
   assert.equal(result.status, 0, `Required check failed: node ${args.join(' ')}`);
 }
-export async function packageBuild(release = false) {
-  if (release) await requireRelease();
-  await build(release);
+export async function packageBuild(release = false, candidate = false) {
+  release ||= candidate;
+  const mode = candidate ? 'release-candidate' : release ? 'release' : 'development';
+  if (release) await requireRelease(candidate);
+  await build(release, candidate);
   if (release) {
+    runNode(['scripts/validate.mjs', candidate ? '--candidate' : '--release', '--built']);
     runNode(['scripts/syntax.mjs']);
     runNode(['--test', 'tests/core.test.mjs']);
-    runNode(['node_modules/web-ext/bin/web-ext.js', 'lint', '--source-dir', 'build/release/firefox', '--warnings-as-errors']);
-    runNode(['scripts/browser-test.mjs', '--release']);
+    runNode(['node_modules/web-ext/bin/web-ext.js', 'lint', '--source-dir', `build/${mode}/firefox`, '--warnings-as-errors']);
+    runNode(['scripts/browser-test.mjs', candidate ? '--candidate' : '--release']);
   }
   const version = (await json('package.json')).version;
-  const mode = release ? 'release' : 'development';
   for (const target of targets) {
     const directory = `build/${mode}/${target}`;
     const expected = await validateBuild(directory, target, release);
@@ -39,11 +41,11 @@ export async function packageBuild(release = false) {
     const unpacked = archiveEntries(zip);
     assert.deepEqual(Object.keys(unpacked).sort(), expected.sort());
     for (const [name, [bytes]] of Object.entries(entries)) assert.deepEqual(unpacked[name], bytes);
-    const filename = `dist/${release ? '' : 'development/'}elec-training-qualification-checker-${target}-v${version}${release ? '' : '-development'}.zip`;
+    const filename = `dist/${candidate ? 'release-candidate/' : release ? '' : 'development/'}elec-training-qualification-checker-${target}-v${version}${candidate ? '-release-candidate' : release ? '' : '-development'}.zip`;
     await put(filename, zip);
     console.log(`Packaged and verified ${filename}`);
   }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  packageBuild(process.argv.includes('--release')).catch((error) => { console.error(error.message); process.exitCode = 1; });
+  packageBuild(process.argv.includes('--release'), process.argv.includes('--candidate')).catch((error) => { console.error(error.message); process.exitCode = 1; });
 }

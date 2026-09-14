@@ -9,8 +9,9 @@ import { root, json, popupWidth } from './lib.mjs';
 import { testNativePopup } from './native-popup-test.mjs';
 import { routes, links } from '../src/data/qualification-routes.js';
 
-const release = process.argv.includes('--release');
-const mode = release ? 'release' : 'development';
+const candidate = process.argv.includes('--candidate');
+const release = process.argv.includes('--release') || candidate;
+const mode = candidate ? 'release-candidate' : release ? 'release' : 'development';
 const results = [];
 await mkdir(path.join(root, 'test-results'), { recursive: true });
 const fits = () => document.documentElement.scrollWidth <= window.innerWidth;
@@ -65,7 +66,7 @@ async function chromiumTest() {
       assert.equal(await page.evaluate(() => document.activeElement.dataset.route), route.id);
       await page.keyboard.press('Tab');
     }
-    assert.equal(await page.evaluate(() => document.activeElement.tagName), 'A');
+    assert(await page.locator('#resources').isHidden());
     const initialAxe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     assert.deepEqual(initialAxe.violations.map((v) => v.id), []);
     // Regular-tab checks only. Allow room for a 380px document at 200% zoom;
@@ -93,6 +94,7 @@ async function chromiumTest() {
     // Intercept destination pages so links can be tested without contacting the website.
     await context.setOffline(false);
     await context.route('https://elec.training/**', (route) => route.fulfill({ contentType: 'text/html', body: '<title>Test destination</title>' }));
+    await page.locator('.choice').first().click();
     for (const link of links) {
       const [tab] = await Promise.all([context.waitForEvent('page'), page.getByRole('link', { name: link.label, exact: true }).click()]);
       await tab.waitForLoadState();

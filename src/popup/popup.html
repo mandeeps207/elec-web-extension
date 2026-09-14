@@ -9,35 +9,33 @@
 </head>
 <body>
   <header class="brand">
-    <div id="brand-art"><span class="brand-name">Elec Training</span><small>Development branding placeholder</small></div>
-    <span class="edition">QUALIFICATION CHECKER</span>
+    <div id="brand-art"><img src="../assets/logo.png" alt="Elec Training" width="837" height="252"></div>
+    <span id="review-notice" class="notice" hidden></span>
   </header>
   <main>
+    <div id="introduction">
     <h1>UK Electrician<br>Qualification Checker</h1>
     <p id="intro" class="muted"></p>
-    <p id="review-notice" class="notice" hidden></p>
+    </div>
     <section id="starting-point" aria-labelledby="question">
       <h2 id="question"></h2>
       <div id="choices" class="choices"></div>
     </section>
     <section id="result" aria-labelledby="result-heading" hidden>
-      <p class="eyebrow">YOUR STARTING POINT</p>
       <p id="selected-label" class="selected"></p>
-      <h2 id="result-heading" tabindex="-1"></h2>
+      <h1 id="result-heading" tabindex="-1"></h1>
       <p id="result-intro"></p>
       <ol id="steps"></ol>
       <aside aria-labelledby="caveat-heading" class="caveats">
-        <h3 id="caveat-heading"></h3>
+        <h2 id="caveat-heading"></h2>
         <div id="caveats"></div>
       </aside>
       <button id="reset" type="button" class="reset"></button>
     </section>
     <noscript>This checker needs local JavaScript enabled to display the starting points.</noscript>
   </main>
-  <footer>
-    <p class="footer-label">Provided by Elec Training</p>
+  <footer id="resources" hidden>
     <nav id="links" aria-label="Elec Training resources"></nav>
-    <small>Links open in a new tab.</small>
   </footer>
 </body>
 </html>

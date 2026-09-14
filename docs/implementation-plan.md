@@ -2,7 +2,7 @@
 
 Reviewed 2026-09-14 before implementation. The workspace was empty; no repository AGENTS.md was found in the workspace or checked ancestors.
 
-The complete product brief was read from `C:/Users/Sandeep/Downloads/Elec Training Browser Extension Backlink.docx`, using all paragraph text in its Word XML. The pasted engineering request was read in full from the supplied attachment. The brief's account, payment, publishing and SEO follow-up phases are outside this task: the more specific local-only instructions take precedence. Public product copy omits the SEO experiment.
+The complete privately supplied product brief and engineering request were read. The public product purpose is helping users understand typical UK electrician qualification routes. Account setup and submission are separate later steps; this task remains local only.
 
 1. Inspect the brief, workspace and official content; record unresolved eligibility and source differences.
 2. Create one local popup and separate structured route data, with visible draft notices.

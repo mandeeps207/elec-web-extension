@@ -25,7 +25,7 @@ The sources support three **conditional drafts** for new, Level 2 and Level 3 us
 
 ## Brief and branding
 
-Primary product brief: `C:/Users/Sandeep/Downloads/Elec Training Browser Extension Backlink.docx`, read completely on the access date. User engineering requirements override its distribution phases. Branding download attempts and design requests are recorded in `src/assets/README.md`.
+Primary product brief: supplied privately by the user and read completely on the access date. User engineering requirements govern this local implementation. Branding provenance is recorded in src/assets/README.md.
 
 ## Engineering sources
 

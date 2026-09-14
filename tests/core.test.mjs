@@ -5,6 +5,68 @@ import { zipSync } from 'fflate';
 import { routes } from '../src/data/qualification-routes.js';
 import { targets, runtimeFiles, validateRoutes, cleanUrl, validateManifest, json, read, auditRuntime, releaseErrors, validateBuild, validatePopupSizing } from '../scripts/lib.mjs';
 import { packageBuild, archiveEntries } from '../scripts/package.mjs';
+import { productionContent, build } from '../scripts/build.mjs';
+import { submissionErrors, files } from '../scripts/lib.mjs';
+
+test('account setup and store collateral are submission prerequisites, not package blockers', async () => {
+  const pending = await json('release-status.json');
+  pending.screenshotsApproved = false; pending.listingsApproved = false;
+  pending.submissionAccounts = {};
+  const ready = structuredClone(pending);
+  ready.screenshotsApproved = true; ready.listingsApproved = true;
+  ready.submissionAccounts = { firefox: { ready: true }, chrome: { ready: true } };
+  assert.deepEqual(await releaseErrors(pending), await releaseErrors(ready));
+  assert.equal(submissionErrors(pending).length, 4);
+  assert.deepEqual(submissionErrors(ready), []);
+  const forged = structuredClone(routes);
+  forged[0].review.approvedBy = 'Someone else';
+  assert((await releaseErrors(pending, forged)).some(error => error.includes('Route new')));
+});
+
+test('public product material excludes private objectives and packages exclude chat evidence', async () => {
+  const names = ['README.md', 'CHANGELOG.md'];
+  for (const dir of ['docs', 'privacy', 'store-listings', 'src']) names.push(...await files(dir));
+  for (const name of names.filter(name => /\.(md|html|js|css)$/.test(name))) {
+    assert(!/backlink|SEO experiment|link.building objective/i.test(await read(name)), `Private objective in ${name}`);
+  }
+  assert(!/client-authorization|written client chat|Mandeep Singh|yes thats fine/i.test(productionContent()));
+});
+
+test('candidate defers only human acceptance while keeping content, asset and source validation gates', async () => {
+  const status = await json('release-status.json');
+  status.privacyExtensionCoverageConfirmed = false;
+  status.manualBrowsers = {};
+  status.approvedSourceSha256 = '';
+  const final = await releaseErrors(status);
+  const candidate = await releaseErrors(status, routes, { candidate: true });
+  assert(final.some(error => error.includes('privacyExtensionCoverageConfirmed')));
+  assert(final.some(error => error.includes('Manual firefox')));
+  assert(final.some(error => error.includes('visual/source')));
+  assert(!candidate.some(error => /privacyExtensionCoverageConfirmed|Manual |visual\/source/.test(error)));
+  status.assetHashes = {}; status.approvedContentSha256 = 'stale'; status.validatedSourceSha256 = 'stale';
+  const rejected = await releaseErrors(status, routes, { candidate: true });
+  assert(rejected.some(error => error.includes('official PNG')));
+  assert(rejected.some(error => error.includes('Approved content hash')));
+  assert(rejected.some(error => error.includes('Validation evidence/source hash')));
+});
+
+test('production serialization excludes internal presentation and preserves every qualification statement', async () => {
+  const text = productionContent();
+  assert(!/\b(?:DEV|development|draft|placeholder|unapproved|unresolved)\b|not for public release/i.test(text));
+  auditRuntime('data/qualification-routes.js', text);
+  const output = await import(`data:text/javascript;base64,${Buffer.from(text).toString('base64')}`);
+  assert.equal(output.copy.notice, undefined);
+  for (const [i, route] of routes.entries()) {
+    assert.deepEqual(output.routes[i], Object.fromEntries(['id', 'label', 'heading', 'intro', 'steps', 'caveats', 'sources'].map(key => [key, route[key]])));
+  }
+  for (const file of ['popup/popup.html', 'popup/popup.css', 'popup/popup.js']) {
+    assert(!/\b(?:DEV|development|draft|placeholder|unapproved|unresolved)\b|not for public release/i.test(await read(`src/${file}`)));
+  }
+});
+
+test('production build cannot bypass missing release evidence', async () => {
+  if ((await releaseErrors()).length) await assert.rejects(build(true), /Release blocked/);
+});
 
 test('all five unique starting positions have sourced, reviewed steps or an unresolved state', () => validateRoutes());
 test('popup roots retain explicit pixel sizing; viewport caps and media overrides are rejected', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "elec-training-qualification-checker",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Local development of the Elec Training qualification checker",
@@ -10,6 +10,9 @@
     "build:release": "node scripts/build.mjs --release",
     "package": "node scripts/package.mjs --release",
     "package:dev": "node scripts/package.mjs",
+    "build:candidate": "node scripts/build.mjs --candidate",
+    "package:candidate": "node scripts/package.mjs --candidate",
+    "validate:candidate": "node scripts/validate.mjs --candidate --built",
     "validate": "node scripts/validate.mjs",
     "validate:release": "node scripts/validate.mjs --release",
     "test": "node --test tests/*.test.mjs",

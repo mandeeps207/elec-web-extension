@@ -1,16 +1,220 @@
 {
   "briefReviewed": true,
-  "officialBrandingApproved": false,
-  "assetProvenance": "",
-  "assetHashes": {},
-  "supportUrl": "",
-  "privacyUrl": "",
-  "firefoxId": "",
-  "manualBrowsers": { "firefox": false, "chrome": false, "edge": false, "opera": false },
+  "officialBrandingApproved": true,
+  "assetProvenance": "User-supplied transparent logo and six icons; approved extension/branding authorization by Charanjit Mannu dated 2026-09-14, reported through written client chat. See internal/client-authorization.md. Files unchanged.",
+  "assetHashes": {
+    "logo.png": "376447508ecf7c461dc6bf9e8644496dcea693201e6a2f38a2176e0091dc2ecc",
+    "icons/icon-16.png": "f9609e522e00f78242ca2a8139d276942f6d6b7ed9c4dbd4f96d05866c7204bb",
+    "icons/icon-32.png": "ffbdabb35f20659a2fd7b1865f0dc1ac805d54befa223dea42b180a1af7c444f",
+    "icons/icon-48.png": "169616baa6e7e5baa003c2891f66d0f1bb9b8dda47d0cb75051438f13b5ffbb8",
+    "icons/icon-64.png": "f99b8ef413cf1add417b12f2af29f3d697205237eade556b144222db44565833",
+    "icons/icon-96.png": "004681b8a0541bca135fb66adc97ac1ad20bef23bf9e95f039d6e4dc2a46c645",
+    "icons/icon-128.png": "0eaba04234afd3fa2d1d58a3dddc3aedc0d9784f258cbfef6d98caa3e2bf50d7"
+  },
+  "supportUrl": "https://elec.training/",
+  "privacyUrl": "https://elec.training/privacy-policy/",
+  "firefoxId": "qualification-checker@elec.training",
+  "manualBrowsers": {
+    "firefox": true,
+    "chrome": true,
+    "edge": true,
+    "opera": true
+  },
   "screenshotsApproved": false,
   "listingsApproved": false,
-  "charanjitSignOff": "",
-  "approvedContentSha256": "",
-  "validatedSourceSha256": "",
-  "validationEvidence": ""
+  "charanjitSignOff": "Charanjit Mannu, 2026-09-14, written client chat: authorization for Mandeep Singh to publish the approved extension/branding via his Firefox and Chrome developer accounts. See internal/client-authorization.md; not a manual-test attestation.",
+  "approvedContentSha256": "baa0da08646a9a8f8ffb22bd96eec94ac68764aa4bb1aa7dac17b634a503596c",
+  "validatedSourceSha256": "1c1258cc551f00ff9cae3abdc3196b1f4a60a77620dcae797379b41c0d19f5fb",
+  "validationEvidence": "Source/generated candidate validation, syntax (10 files), 14 tests, Mozilla lint (zero errors/warnings/notices), Chromium accessibility and Firefox/Chromium native/browser tests passed after acceptance-record update. Candidate ZIP hashes unchanged. Runtime/content unchanged. Only display-scaling details and NVDA confirmation remain pending.",
+  "supportEmail": "enquiry@elec.training",
+  "approvedSourceSha256": "1c1258cc551f00ff9cae3abdc3196b1f4a60a77620dcae797379b41c0d19f5fb",
+  "reportedApproval": {
+    "source": "User request attachment 73855b06-92ff-47d0-b993-51499a614a10/pasted-text.txt",
+    "wording": true,
+    "conceptAndExistingInterface": true,
+    "logoAndIcons": true,
+    "approvedBy": "Charanjit Mannu",
+    "approvedOn": "2026-09-14",
+    "reference": "internal/client-authorization.md",
+    "satisfiesCharanjitGate": true,
+    "exactBoundedReferralApproval": true,
+    "compactLayoutApproved": true
+  },
+  "proposedFirefoxId": "qualification-checker@elec.training",
+  "firefoxNameApproved": true,
+  "privacyExtensionCoverageConfirmed": true,
+  "publisherLegalIdentity": null,
+  "currentHashes": {
+    "sourceSha256": "1c1258cc551f00ff9cae3abdc3196b1f4a60a77620dcae797379b41c0d19f5fb",
+    "contentSha256": "baa0da08646a9a8f8ffb22bd96eec94ac68764aa4bb1aa7dac17b634a503596c",
+    "note": "Computed source/content hashes. Content approval is recorded; final visual/manual acceptance is not inferred."
+  },
+  "automatedValidation": {
+    "scope": "Exact candidate output revalidated after manual-report recording; candidate ZIP bytes unchanged.",
+    "sourceSha256": "1c1258cc551f00ff9cae3abdc3196b1f4a60a77620dcae797379b41c0d19f5fb",
+    "browserReportSha256": "fab82ffd5ca01d31030e3eb863272d04d3d3ced4064b1ca549ee515152076097",
+    "browserReportDate": "2026-09-14T18:20:24.767Z",
+    "nativePopupZoom": "Default only; native 150/200% zoom/display scaling and screen-reader acceptance pending."
+  },
+  "publicationAuthorization": {
+    "approver": "Charanjit Mannu",
+    "approvalDate": "2026-09-14",
+    "channel": "written client chat",
+    "representative": "Mandeep Singh",
+    "onBehalfOf": "Elec Training",
+    "browsers": [
+      "firefox",
+      "chrome"
+    ],
+    "response": "yes thats fine",
+    "evidenceReference": "internal/client-authorization.md; user-supplied transcription in current task",
+    "originalScreenshotInspected": false,
+    "changesMayBeMadeLater": true
+  },
+  "submissionAccounts": {
+    "firefox": {
+      "authorizedHolder": "Mandeep Singh",
+      "ready": false
+    },
+    "chrome": {
+      "authorizedHolder": "Mandeep Singh",
+      "ready": false
+    }
+  },
+  "manualEvidence": {
+    "chrome": {
+      "scope": "User reports testing exact version 1.0.0 release-candidate packages.",
+      "nativeToolbarPopup": "PASS",
+      "allFiveRoutes": "PASS",
+      "linksAndReset": "PASS",
+      "keyboardNavigation": "PASS",
+      "nativeZoom150And200Percent": "PASS",
+      "noHorizontalOverflow": "PASS",
+      "evidenceReference": "Latest user manual acceptance report in this conversation",
+      "testDate": null,
+      "browserVersion": null
+    },
+    "firefox": {
+      "scope": "User reports testing exact version 1.0.0 release-candidate packages.",
+      "nativeToolbarPopup": "PASS",
+      "allFiveRoutes": "PASS",
+      "linksAndReset": "PASS",
+      "keyboardNavigation": "PASS",
+      "nativeZoom150And200Percent": "PASS",
+      "noHorizontalOverflow": "PASS",
+      "evidenceReference": "Latest user manual acceptance report in this conversation",
+      "testDate": null,
+      "browserVersion": null
+    },
+    "edge": {
+      "scope": "User reports testing exact version 1.0.0 release-candidate packages.",
+      "nativeToolbarPopup": "PASS",
+      "allFiveRoutes": "PASS",
+      "linksAndReset": "PASS",
+      "keyboardNavigation": "PASS",
+      "nativeZoom150And200Percent": "PASS",
+      "noHorizontalOverflow": "PASS",
+      "evidenceReference": "Latest user manual acceptance report in this conversation",
+      "testDate": null,
+      "browserVersion": null
+    },
+    "opera": {
+      "scope": "User reports testing exact version 1.0.0 release-candidate packages.",
+      "nativeToolbarPopup": "PASS",
+      "allFiveRoutes": "PASS",
+      "linksAndReset": "PASS",
+      "keyboardNavigation": "PASS",
+      "nativeZoom150And200Percent": "PASS",
+      "noHorizontalOverflow": "PASS",
+      "evidenceReference": "Latest user manual acceptance report in this conversation",
+      "testDate": null,
+      "browserVersion": null
+    },
+    "native150And200Percent": true,
+    "windowsDisplayScaling": false,
+    "screenReader": false,
+    "notCompleted": {
+      "windowsDisplayScaling": {
+        "status": "not completed",
+        "percentage": null,
+        "result": null,
+        "evidence": "User explicitly states no Windows display-scaling test was performed."
+      },
+      "nvda": {
+        "status": "not completed",
+        "result": null,
+        "evidence": "User explicitly states [PASS] was an unfilled template placeholder and no NVDA review was performed."
+      }
+    }
+  },
+  "candidateAuthorization": {
+    "source": "User clarification in current task",
+    "scope": "Construct clearly labelled production release-candidate ZIPs when production code/content/branding/manifests/package validation pass. Leave manual checks and privacy coverage pending. Not final/store-ready.",
+    "privacyCoveragePending": false,
+    "manualAcceptancePending": true
+  },
+  "candidatePackages": [
+    {
+      "path": "dist/release-candidate/elec-training-qualification-checker-firefox-v1.0.0-release-candidate.zip",
+      "bytes": 187546,
+      "sha256": "1b5c0f56645f325e45519b3c99168bf40dddd1a683a6a1b9d322ffef7ba63bcd",
+      "files": [
+        "assets/icons/icon-128.png",
+        "assets/icons/icon-16.png",
+        "assets/icons/icon-32.png",
+        "assets/icons/icon-48.png",
+        "assets/icons/icon-64.png",
+        "assets/icons/icon-96.png",
+        "assets/logo.png",
+        "data/qualification-routes.js",
+        "manifest.json",
+        "popup/popup.css",
+        "popup/popup.html",
+        "popup/popup.js"
+      ],
+      "deterministic": true
+    },
+    {
+      "path": "dist/release-candidate/elec-training-qualification-checker-chromium-v1.0.0-release-candidate.zip",
+      "bytes": 187321,
+      "sha256": "ec0dcf5be6fae4d98f2a74bd249b40e7d94854c5d2c6e99a89492f923612741b",
+      "files": [
+        "assets/icons/icon-128.png",
+        "assets/icons/icon-16.png",
+        "assets/icons/icon-32.png",
+        "assets/icons/icon-48.png",
+        "assets/icons/icon-64.png",
+        "assets/icons/icon-96.png",
+        "assets/logo.png",
+        "data/qualification-routes.js",
+        "manifest.json",
+        "popup/popup.css",
+        "popup/popup.html",
+        "popup/popup.js"
+      ],
+      "deterministic": true
+    }
+  ],
+  "privacyPolicyApproval": {
+    "approver": "Charanjit Mannu",
+    "approvalDate": "2026-09-14",
+    "channel": "written client chat",
+    "url": "https://elec.training/privacy-policy/",
+    "scope": "Use existing policy URL for initial Firefox and Chrome extension submissions; company approval requirement satisfied.",
+    "response": "use the existing one, if needed we can change it later on",
+    "evidenceReference": "internal/client-authorization.md (privacy-policy approval); user-supplied transcription in current task",
+    "originalScreenshotInspected": false,
+    "extensionSpecificWordingPresent": false,
+    "dedicatedExtensionSection": "Recommended future improvement; not a current package blocker."
+  },
+  "visualAcceptance": {
+    "result": "Approved",
+    "scope": "Final logo, icon, wording and visual presentation of exact 1.0.0 candidate packages",
+    "source": "Latest user report",
+    "candidateHashes": {
+      "dist/release-candidate/elec-training-qualification-checker-firefox-v1.0.0-release-candidate.zip": "1b5c0f56645f325e45519b3c99168bf40dddd1a683a6a1b9d322ffef7ba63bcd",
+      "dist/release-candidate/elec-training-qualification-checker-chromium-v1.0.0-release-candidate.zip": "ec0dcf5be6fae4d98f2a74bd249b40e7d94854c5d2c6e99a89492f923612741b"
+    },
+    "runtimeChanged": false
+  }
 }

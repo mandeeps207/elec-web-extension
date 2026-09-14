@@ -10,8 +10,8 @@ byId('intro').textContent = copy.intro;
 byId('question').textContent = copy.question;
 byId('reset').textContent = copy.reset;
 byId('caveat-heading').textContent = copy.caveatHeading;
-if (routes.some((route) => route.review.status !== 'approved')) {
-  byId('review-notice').textContent = copy.draft;
+if (copy.notice) {
+  byId('review-notice').textContent = copy.notice;
   byId('review-notice').hidden = false;
 }
 
@@ -19,18 +19,21 @@ let lastChoice;
 function showRoute(route, button) {
   lastChoice = button;
   byId('selected-label').textContent = route.label;
-  byId('result-heading').textContent = route.state === 'unresolved' ? copy.unresolvedHeading : copy.resultHeading;
+  byId('result-heading').textContent = route.heading;
   byId('result-intro').textContent = route.intro;
   byId('steps').replaceChildren(...route.steps.map((step) => {
     const item = document.createElement('li');
-    item.append(element('h3', step.title), element('p', step.explanation));
+    item.append(element('h2', step.title), element('p', step.explanation));
     return item;
   }));
   byId('caveats').replaceChildren(...route.caveats.map((text) => element('p', text)));
   byId('starting-point').hidden = true;
+  byId('introduction').hidden = true;
+  byId('resources').hidden = false;
   byId('result').hidden = false;
   // Move focus to announce the changed section; a live region would duplicate it.
   byId('result-heading').focus();
+  document.body.scrollTo(0, 0);
 }
 for (const route of routes) {
   const button = element('button', route.label);
@@ -43,6 +46,8 @@ for (const route of routes) {
 byId('reset').addEventListener('click', () => {
   byId('result').hidden = true;
   byId('starting-point').hidden = false;
+  byId('introduction').hidden = false;
+  byId('resources').hidden = true;
   lastChoice?.focus();
 });
 for (const link of links) {
@@ -54,5 +59,6 @@ for (const link of links) {
   anchor.href = url.href;
   anchor.target = '_blank';
   anchor.rel = 'noopener noreferrer';
+  anchor.title = 'Opens in a new tab';
   byId('links').append(anchor);
 }
