@@ -4,7 +4,7 @@
 
 ## Extension name
 
-UK Electrician Qualification Checker – Elec Training
+UK Electrician Qualification Checker
 
 ## Short summary
 
@@ -52,3 +52,7 @@ Map these facts to the actual store questionnaire; do not invent answers for new
 ## Package and submission handoff
 
 Prepared version 1.0.0 uses the existing approved wording and supplied official artwork. The permanent Firefox release ID is qualification-checker@elec.training. Company approval of the existing privacy URL for initial Firefox/Chrome submissions is recorded. Manual technical acceptance and final visual evidence remain final-release gates. Clearly labelled production candidates may be constructed for that acceptance after all technical/content/asset/package checks pass. Account credentials/setup and store-specific listing/screenshots are submission prerequisites, not ZIP blockers. Do not upload development packages or internal test screenshots.
+
+## Opera manifest-name correction
+
+Opera rejected the shared Chromium name as too long. The Opera-specific name is UK Electrician Qualification Checker (36 characters; limit 45). Rebuild the dedicated ZIP with node scripts/package-opera.mjs. Output: dist/opera/elec-training-qualification-checker-opera-v1.0.0.zip. The script verifies the original candidate hash, changes only manifest.name, validates the 12-file package and proves every other runtime file is byte-identical. Existing Chrome/Firefox packages are untouched. Manual acceptance status is unchanged; this operation does not submit the extension.
