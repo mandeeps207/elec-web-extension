@@ -1,5 +1,7 @@
 # Safari / macOS App Store listing draft
 
+Current authoritative Apple record: Team/App ID Prefix `3XPCC2X77K`; registered containing Bundle ID `training.elec.qualification.checker`; proposed extension ID `training.elec.qualification.checker.extension` (not registered); SKU `ELEC-QUAL-CHECKER-MAC-002`; Apple ID `6812432163`; App Store Connect platform **macOS only**. The previous app record was deleted. The diagnostic corrects target-specific identifiers before validation; no extension registration or signing is authorized. This record supersedes earlier proposed-record wording below.
+
 INTERNAL DRAFT: Charanjit approval, Apple packaging, TestFlight/Safari acceptance and submission authority pending. No claim of store readiness. Do not copy this internal status line into public listing fields.
 
 ## App information
@@ -9,8 +11,8 @@ INTERNAL DRAFT: Charanjit approval, Apple packaging, TestFlight/Safari acceptanc
 - Subtitle: **Explore your training pathway** (29/30).
 - Version: 1.0.0. Platform: macOS only; no iPhone/iPad release.
 - Brand/publisher requested: Elec Training. Confirm the Apple team's actual public seller/developer identity.
-- Proposed Bundle ID: training.elec.qualification-checker (unregistered; check existing identifiers first).
-- Proposed SKU: ELEC-QUAL-CHECKER-MAC-001 (unconfirmed; do not replace existing SKU).
+- Registered containing Bundle ID: training.elec.qualification.checker.
+- Registered app SKU: ELEC-QUAL-CHECKER-MAC-002.
 - Support URL / marketing URL: https://elec.training/
 - Support email: enquiry@elec.training
 - Privacy-policy URL: https://elec.training/privacy-policy/ (confirm Safari/generated-app disclosure; existing policy lacks extension-specific wording).

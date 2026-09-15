@@ -237,8 +237,8 @@
     "proposedStoreName": "UK Electrician Route Checker",
     "storeNameConfirmed": true,
     "publisher": "Elec Training",
-    "proposedBundleId": "training.elec.qualification-checker",
-    "proposedSku": "ELEC-QUAL-CHECKER-MAC-001",
+    "proposedBundleId": "training.elec.qualification.checker",
+    "proposedSku": "ELEC-QUAL-CHECKER-MAC-002",
     "identifiersRegistered": false,
     "packagerSucceeded": false,
     "testFlightPassed": false,
@@ -258,17 +258,32 @@
       "submittedPackagesUnchanged": true
     },
     "githubActions": {
-      "status": "Conversion succeeded; JSON stream parsing corrected; generated Bundle ID conflicts require review",
+      "status": "Target identifier correction prepared; fresh unsigned macOS run pending",
       "runner": "macos-15",
       "xcode": "26.3 (17C529)",
-      "appBundleId": "training.elec.qualification-checker",
-      "expectedExtensionBundleId": "training.elec.qualification-checker.extension",
-      "actualExtensionBundleId": "training.elec.qualification-checker.Extension",
+      "appBundleId": "training.elec.qualification.checker",
+      "expectedExtensionBundleId": "training.elec.qualification.checker.extension",
+      "actualExtensionBundleId": null,
       "phase1Passed": false,
       "signingEnabled": false,
       "uploaded": false,
-      "reason": "Run 34999298612 generated identifiers differ from requested values; no identifiers changed or registered",
-      "actualContainingBundleId": "training.elec.UK-Electrician-Route-Checker"
-    }
+      "reason": "Verify corrected Debug and Release settings and built app/extension in a new diagnostic",
+      "actualContainingBundleId": null,
+      "historicalDiagnostics": [
+        {
+          "runId": "34999298612",
+          "containingBundleId": "training.elec.UK-Electrician-Route-Checker",
+          "extensionBundleId": "training.elec.qualification-checker.Extension",
+          "note": "Historical converter defaults for the deleted record; not active configuration"
+        }
+      ],
+      "teamId": "3XPCC2X77K",
+      "appleId": "6812432163",
+      "sku": "ELEC-QUAL-CHECKER-MAC-002"
+    },
+    "teamId": "3XPCC2X77K",
+    "appleId": "6812432163",
+    "containingAppRegistered": true,
+    "extensionAppRegistered": false
   }
 }

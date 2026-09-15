@@ -1,6 +1,8 @@
 # Safari build export and optional Apple upload
 
-Current app name: **UK Electrician Route Checker**. Version 1.0.0; macOS only. Expected containing ID `training.elec.qualification-checker`; expected extension ID `training.elec.qualification-checker.extension` still requires actual Phase 1 confirmation. SKU `ELEC-QUAL-CHECKER-MAC-001`. Existing app records/identifiers must be inspected before any registration. Homepage/support: https://elec.training/; support email: enquiry@elec.training; privacy: https://elec.training/privacy-policy/.
+Current authoritative Apple record: Team/App ID Prefix `3XPCC2X77K`; registered containing Bundle ID `training.elec.qualification.checker`; proposed extension ID `training.elec.qualification.checker.extension` (not registered); SKU `ELEC-QUAL-CHECKER-MAC-002`; Apple ID `6812432163`; App Store Connect platform **macOS only**. The previous app record was deleted. The diagnostic corrects target-specific identifiers before validation; no extension registration or signing is authorized. This record supersedes earlier proposed-record wording below.
+
+Current app name: **UK Electrician Route Checker**. Version 1.0.0; macOS only. Expected containing ID `training.elec.qualification.checker`; expected extension ID `training.elec.qualification.checker.extension` still requires actual Phase 1 confirmation. SKU `ELEC-QUAL-CHECKER-MAC-002`. Existing app records/identifiers must be inspected before any registration. Homepage/support: https://elec.training/; support email: enquiry@elec.training; privacy: https://elec.training/privacy-policy/.
 
 ## Build without uploading first
 

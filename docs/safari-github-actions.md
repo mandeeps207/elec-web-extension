@@ -1,5 +1,7 @@
 # Safari macOS CI: design and handoff
 
+Current authoritative Apple record: Team/App ID Prefix `3XPCC2X77K`; registered containing Bundle ID `training.elec.qualification.checker`; proposed extension ID `training.elec.qualification.checker.extension` (not registered); SKU `ELEC-QUAL-CHECKER-MAC-002`; Apple ID `6812432163`; App Store Connect platform **macOS only**. The previous app record was deleted. The diagnostic corrects target-specific identifiers before validation; no extension registration or signing is authorized. This record supersedes earlier proposed-record wording below.
+
 Status: workflows prepared locally; Phase 1 has not run. Signed archive, export, Apple upload, TestFlight and Safari testing are pending. No credential, identifier or profile has been created. The team reports that the Xcode Cloud web packager is unavailable; the GitHub route supersedes that handoff, without bypassing Apple distribution requirements.
 
 ## Design review (15 September 2026)
@@ -10,7 +12,7 @@ Apple currently calls its conversion utility a packager and documents its previo
 
 GitHub's macos-15 inventory reviewed for this work: image 20260824.0482.1, macOS 15.7.9, Xcode **26.3 (17C529)** at `/Applications/Xcode_26.3.app`. The workflow sets DEVELOPER_DIR explicitly and verifies the exact version/build. The macos-15 default is a different Xcode. Runner images are mutable; removal of the pinned version fails rather than falling back. Installed Node 22.23.2 supports the existing >=22.19 engine. npm uses the lockfile with lifecycle scripts disabled; no new dependencies were added. Actions are pinned to verified commit SHAs.
 
-One credential requirement beyond app code signing: exporting an App Store installer also needs a **Mac Installer Distribution** identity. The documented P12 contains both that identity and Apple Distribution, each with its private key. Developer ID/development identities are rejected. Do not obtain profiles until the actual generated extension ID is confirmed.
+One credential requirement beyond app code signing: exporting an App Store installer also needs a **Mac Installer Distribution** identity. The documented P12 contains both that identity and Apple Distribution, each with its private key. Developer ID/development identities are rejected. Do not obtain profiles until the corrected resolved extension ID is confirmed.
 
 ## Two manual workflows
 
@@ -25,7 +27,7 @@ The workflow files must first be reviewed, committed and pushed to the repositor
 
 1. Open repository > Actions > **Safari unsigned diagnostic** > Run workflow. Select the reviewed branch and run. No Apple secrets or App IDs are needed.
 2. Open the run. Download `safari-diagnostic-<run-id>-<attempt>` within seven days. Read converter-help.txt, generated-structure.json, diagnostic.json and operations.json. Extract generated-project.tar.gz to inspect Apple's source, target settings, plists, entitlements and app artwork. Failed conversion/structure checks may produce only partial artifacts.
-3. Verify the actual containing ID is `training.elec.qualification-checker` and actual extension ID is `training.elec.qualification-checker.extension`. These are expected values, **not observed converter results**. If a different suffix appears, stop and report that exact identifier. Do not create a third/unnecessary identifier or bypass the comparison.
+3. Verify the actual containing ID is `training.elec.qualification.checker` and actual extension ID is `training.elec.qualification.checker.extension`. These are expected values, **not observed converter results**. Converter defaults are preserved as evidence, then explicitly corrected by product type in every target configuration. Validate the corrected Debug and Release settings. Do not create a third/unnecessary identifier or bypass the comparison.
 4. Confirm the exact scheme, target names, macOS-only platforms, plist/entitlement paths, generated native behavior, wrapper artwork, resource equality, no unexpected capabilities, encryption false and unsignedBuild PASS. The generated source remains an artifact, not a committed Xcode project. No project is retained because reproducible generation plus fingerprint review is preferable here; converter drift is a blocking signal.
 5. After a genuine review, update `ci/safari-diagnostic-approval.json`: approved true, actual successful GitHub run URL, reviewer's name and exact diagnostic fingerprint. Review and authorize committing that evidence. No fabricated values are supplied now. The signed workflow checks the same fingerprint on a new conversion; changed code/tool/topology blocks it.
 6. Only then follow [signing setup](apple-signing-setup.md). Set a unique build number greater than previously uploaded builds, or use the workflow's `<run_number>.<run_attempt>` default. A rerun increments the attempt. The script enforces Apple's numeric component limits; it cannot inspect existing Apple build numbers without account access. Overrides must be checked manually against App Store Connect.
@@ -74,8 +76,10 @@ All existing archives retained their before/after SHA256 values:
 
 Machine evidence: test-results/apple-ci-verification.json, apple-ci-unit.log and browser-results.json. Existing runtime, manifests and browser ZIP outputs were not changed by this CI work. New files: both workflows, ci/safari-diagnostic-approval.json, scripts/apple-ci.mjs, scripts/apple-input.mjs, tests/apple-ci.test.mjs, .gitattributes and the four Apple CI/setup/compliance/upload guides. Updated .gitignore, package.json, README.md, release-status.json and existing Safari handoff/listing documents. No commit, push, workflow dispatch or Apple account action was performed.
 
-## Observed diagnostic run 34999298612
+## Historical diagnostic run 34999298612
 
 Conversion succeeded under Xcode 26.3. The subsequent build-settings JSON parsing failed because the command wrapper combined stdout with stderr. Structured commands now parse stdout only; malformed stdout and nonzero command exits still fail. 25 local tests passed after this correction.
 
 The generated project artifact shows containing Bundle ID `training.elec.UK-Electrician-Route-Checker` and extension Bundle ID `training.elec.qualification-checker.Extension` (capital E). These differ from the requested values. The existing mismatch gate remains in place. Do not create another App ID or enable signing; review the target-specific identifier correction first. No actual identifiers, provisioning profiles or approved WebExtension files were changed.
+
+Historical evidence only: the correction now assigns the new registered app ID and proposed extension ID by product type before checking resolved settings. The old record is deleted and must not be used.

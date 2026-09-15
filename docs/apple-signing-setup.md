@@ -1,6 +1,8 @@
 # Apple signing setup after Phase 1
 
-Do not create the extension App ID or profiles yet. First complete the unsigned diagnostic and confirm its exact generated identifiers. Current expected IDs are `training.elec.qualification-checker` for the app and `training.elec.qualification-checker.extension` for the extension. A suffix conflict requires investigation before registration. Check existing identifiers first; never replace them silently.
+Current authoritative Apple record: Team/App ID Prefix `3XPCC2X77K`; registered containing Bundle ID `training.elec.qualification.checker`; proposed extension ID `training.elec.qualification.checker.extension` (not registered); SKU `ELEC-QUAL-CHECKER-MAC-002`; Apple ID `6812432163`; App Store Connect platform **macOS only**. The previous app record was deleted. The diagnostic corrects target-specific identifiers before validation; no extension registration or signing is authorized. This record supersedes earlier proposed-record wording below.
+
+Do not create the extension App ID or profiles yet. First complete the unsigned diagnostic and confirm its exact corrected identifiers. Current expected IDs are `training.elec.qualification.checker` for the app and `training.elec.qualification.checker.extension` for the extension. Only the corrected, resolved extension ID may be considered for later registration. Check existing identifiers first; never replace them silently.
 
 An authorized Apple Developer Account Holder/Admin manages certificates and profiles. GitHub's macOS runner supplies Xcode; signing still requires a paid Apple Developer team with the appropriate account access. This implementation performs no automatic provisioning and uses no development signing.
 

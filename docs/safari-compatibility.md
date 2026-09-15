@@ -1,5 +1,7 @@
 # macOS Safari compatibility audit
 
+Current authoritative Apple record: Team/App ID Prefix `3XPCC2X77K`; registered containing Bundle ID `training.elec.qualification.checker`; proposed extension ID `training.elec.qualification.checker.extension` (not registered); SKU `ELEC-QUAL-CHECKER-MAC-002`; Apple ID `6812432163`; App Store Connect platform **macOS only**. The previous app record was deleted. The diagnostic corrects target-specific identifiers before validation; no extension registration or signing is authorized. This record supersedes earlier proposed-record wording below.
+
 Update: the team reports no Xcode Cloud Safari packager access. Use [the GitHub macOS diagnostic-first route](safari-github-actions.md). The cloud instructions below are historical alternatives, not the current next action. The current App Store name is UK Electrician Route Checker; actual converter identifiers and signed builds remain pending.
 
 Status: Package prepared; Safari/TestFlight testing and App Store submission pending. No Safari execution is claimed on Windows. Documentation reviewed 2026-09-15, before edits. Apple documentation pages requiring JavaScript were read through their official developer.apple.com/tutorials/data JSON representations.
@@ -35,7 +37,7 @@ The source and both submitted archives were inspected and their hashes recorded 
 | Privacy/permissions | No permissions/host permissions, network APIs, tracking/storage/telemetry. No Apple privacy manifest or entitlements are fabricated inside the input ZIP; the cloud-generated native app must be reviewed for actual entitlements, privacy/export questions and any required declarations. WebExtension no-permission behavior does not eliminate Safari's user enable-extension step. |
 | Platform | macOS-only is selected in App Store Connect's app record/packaging workflow, not encoded by an invented manifest platform key. Do not select iOS; no iPhone/iPad release. |
 
-The requested app name is 36 characters, exceeding Apple's 30-character App Store name limit. Proposed store name: UK Electrician Route Checker (28), pending client approval and availability. Keep the requested full product name in the popup/description. Bundle ID training.elec.qualification-checker and SKU ELEC-QUAL-CHECKER-MAC-001 remain proposals; none registered or overwritten.
+The requested app name is 36 characters, exceeding Apple's 30-character App Store name limit. Proposed store name: UK Electrician Route Checker (28), pending client approval and availability. Keep the requested full product name in the popup/description. The containing Bundle ID training.elec.qualification.checker and SKU ELEC-QUAL-CHECKER-MAC-002 are user-confirmed registered values. The extension identifier remains proposed.
 
 ## Local protection
 

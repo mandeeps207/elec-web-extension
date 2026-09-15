@@ -7,8 +7,11 @@ import { createHash, randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 
-export const APP = 'training.elec.qualification-checker';
+export const TEAM = '3XPCC2X77K';
+export const APP = 'training.elec.qualification.checker';
 export const EXT = APP + '.extension';
+export const SKU = 'ELEC-QUAL-CHECKER-MAC-002';
+export const APPLE_ID = '6812432163';
 export const VERSION = '1.0.0';
 const INPUT_HASH = '4d8b5877385e29a3aa3136b9e9d8f7812d981be7811ca3704bba308efcbdcb88';
 const base = path.resolve('build/generated/apple');
@@ -102,10 +105,33 @@ function projectData() {
   assert(app && ext, 'Expected a containing application and embedded extension');
   return { file, project: path.dirname(file), data, targets, app, ext };
 }
-function xcodeArgs(p, scheme) { return ['xcodebuild', '-project', p.project, '-scheme', scheme, '-configuration', 'Release', '-destination', 'generic/platform=macOS']; }
-function settings(p, scheme) { return commandJson('Inspect build settings', [...xcodeArgs(p, scheme), '-showBuildSettings', '-json']); }
-function topology(p, scheme) {
-  const result = settings(p, scheme).map(({ target, buildSettings: b }) => ({ target, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE }));
+export function correctTargetIdentifiers(data) {
+  const targets = Object.values(data.objects).filter(o => o.isa === 'PBXNativeTarget');
+  assert.equal(targets.length, 2);
+  for (const [type, bundle] of [['com.apple.product-type.application', APP], ['com.apple.product-type.app-extension', EXT]]) {
+    const matches = targets.filter(t => t.productType === type);
+    assert.equal(matches.length, 1, 'Each product type must identify exactly one target');
+    const configs = data.objects[matches[0].buildConfigurationList].buildConfigurations.map(id => data.objects[id]);
+    for (const name of ['Debug', 'Release']) assert(configs.some(c => c.name === name), `Missing ${name} configuration`);
+    for (const c of configs) {
+      for (const key of Object.keys(c.buildSettings)) if (key.startsWith('PRODUCT_BUNDLE_IDENTIFIER[')) c.buildSettings[key] = bundle;
+      c.buildSettings.PRODUCT_BUNDLE_IDENTIFIER = bundle;
+      c.buildSettings.DEVELOPMENT_TEAM = TEAM;
+    }
+  }
+}
+export function verifyResolvedIdentifiers(rows) {
+  assert.equal(rows.length, 2);
+  for (const [type, expected] of [['com.apple.product-type.application', APP], ['com.apple.product-type.app-extension', EXT]]) {
+    const targets = rows.filter(r => r.productType === type);
+    assert.equal(targets.length, 1);
+    assert.equal(targets[0].bundle, expected, 'Resolved Bundle ID differs from the exact approved value');
+  }
+}
+function xcodeArgs(p, scheme, configuration = 'Release') { return ['xcodebuild', '-project', p.project, '-scheme', scheme, '-configuration', configuration, '-destination', 'generic/platform=macOS']; }
+function settings(p, scheme, configuration = 'Release') { return commandJson('Inspect build settings', [...xcodeArgs(p, scheme, configuration), '-showBuildSettings', '-json']); }
+function topology(p, scheme, configuration = 'Release') {
+  const result = settings(p, scheme, configuration).map(({ target, buildSettings: b }) => ({ target, configuration, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, sandbox: b.ENABLE_APP_SANDBOX, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE, productName: b.FULL_PRODUCT_NAME, version: b.MARKETING_VERSION, buildNumber: b.CURRENT_PROJECT_VERSION }));
   return result.sort((a, b) => a.target.localeCompare(b.target));
 }
 function verifyResources(dir) {
@@ -144,22 +170,28 @@ function diagnostic() {
   const scheme = matchingSchemes[0];
   const original = topology(p, scheme);
   save(path.join(reportDir, 'generated-structure.json'), { project: path.relative(base, p.project), schemes, selectedScheme: scheme, targets: original });
+  correctTargetIdentifiers(p.data);
   for (const [target, expected] of [[p.app, APP], [p.ext, EXT]]) {
     const b = original.find(v => v.target === target.name);
-    assert.equal(b?.bundle, expected, `Generated identifier conflict for ${target.name}: ${b?.bundle}; do not register another App ID`);
     assert.equal(b.platform, 'macosx', 'Only macOS is permitted');
     assert(b.plist && !b.plist.includes('$'), 'Concrete Info.plist path required');
     const info = path.resolve(path.dirname(p.project), b.plist);
     assert(info.startsWith(base + path.sep));
     const value = plist(info);
+    value.CFBundleIdentifier = '$(PRODUCT_BUNDLE_IDENTIFIER)';
     value.ITSAppUsesNonExemptEncryption = false;
     value.CFBundleShortVersionString = VERSION;
     value.CFBundleVersion = '$(CURRENT_PROJECT_VERSION)';
     writePlist(info, value);
     assert.equal(plist(info).ITSAppUsesNonExemptEncryption, false);
-    const ent = path.resolve(path.dirname(p.project), b.entitlements);
-    assert(ent.startsWith(base + path.sep));
-    checkEntitlements(plist(ent), expected);
+    if (b.entitlements) {
+      const ent = path.resolve(path.dirname(p.project), b.entitlements);
+      assert(ent.startsWith(base + path.sep));
+      checkEntitlements(plist(ent), expected);
+    } else {
+      // Xcode 26's observed template generates entitlements from build settings.
+      assert.equal(b.sandbox, 'YES', 'Generated app sandbox must remain enabled');
+    }
     for (const id of p.data.objects[target.buildConfigurationList].buildConfigurations) {
       const settings = p.data.objects[id].buildSettings;
       settings.PRODUCT_BUNDLE_IDENTIFIER = expected;
@@ -172,11 +204,15 @@ function diagnostic() {
     }
   }
   writePlist(p.file, p.data);
+  const corrected = Object.fromEntries(['Debug', 'Release'].map(c => [c, topology(p, scheme, c)]));
+  for (const rows of Object.values(corrected)) verifyResolvedIdentifiers(rows);
+  save(path.join(reportDir, 'corrected-structure.json'), { project: path.relative(base, p.project), scheme, team: TEAM, containingBundleId: APP, extensionBundleId: EXT, sku: SKU, appleId: APPLE_ID, configurations: corrected });
   safeGeneratedSource();
   verifyResources(base);
   // Stable reviewed evidence excludes random PBX object IDs and build-number overrides.
   const nativeHashes = Object.fromEntries(walk(base).filter(f => /\.(swift|m|h|html|js|css|plist|entitlements|png)$/.test(f)).map(f => [path.relative(base, f).split(path.sep).join('/'), digest(fs.readFileSync(f))]));
-  const evidence = { xcode: version, converterHelpHash: digest(help), scheme, targets: original, nativeHashes, inputHash: INPUT_HASH };
+  const stableConfigurations = Object.fromEntries(Object.entries(corrected).map(([c, rows]) => [c, rows.map(({ buildNumber, ...row }) => row)]));
+  const evidence = { xcode: version, converterHelpHash: digest(help), project: path.relative(base, p.project), scheme, configurations: stableConfigurations, nativeHashes, inputHash: INPUT_HASH, containingBundleId: APP, extensionBundleId: EXT, team: TEAM, sku: SKU, appleId: APPLE_ID };
   const report = { ...evidence, fingerprint: digest(JSON.stringify(evidence)), unsignedBuild: 'pending' };
   save(path.join(reportDir, 'diagnostic.json'), report);
   if (process.argv.includes('--approved')) requireApproval(report);
@@ -184,7 +220,8 @@ function diagnostic() {
   const productName = settings(p, scheme).find(v => v.target === p.app.name).buildSettings.FULL_PRODUCT_NAME;
   assert(productName?.endsWith('.app') && path.basename(productName) === productName, 'Unexpected app product name');
   const app = path.join(base, 'DerivedData/Build/Products/Release', productName);
-  verifyProduct(app, false);
+  report.products = verifyProduct(app, false);
+  report.resolvedConfigurations = corrected;
   report.unsignedBuild = 'PASS';
   save(path.join(reportDir, 'diagnostic.json'), report);
   // Project snapshot excludes DerivedData, build logs, profiles and credentials.
@@ -239,7 +276,7 @@ function signed() {
   assert.equal(report.unsignedBuild, 'PASS');
   assert.equal(process.env.BUILD_CONFIGURATION || 'Release', 'Release');
   const team = process.env.APPLE_TEAM_ID;
-  assert(/^[A-Z0-9]{10}$/.test(team || ''), 'Missing/invalid APPLE_TEAM_ID');
+  assert.equal(team, TEAM, 'APPLE_TEAM_ID must match the registered team');
   assert(process.env.APPLE_CERTIFICATE_PASSWORD, 'Missing APPLE_CERTIFICATE_PASSWORD');
   fs.mkdirSync(privateDir, { recursive: true, mode: 0o700 });
   const state = readJson(path.join(base, 'state.json'));

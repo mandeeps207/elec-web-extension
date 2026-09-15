@@ -6,11 +6,35 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
 const read = p => fs.readFileSync(p, 'utf8');
+
+test('Registered Apple identity is assigned by product type to every configuration and compared case-sensitively', () => {
+  assert.equal(TEAM, '3XPCC2X77K');
+  assert.equal(SKU, 'ELEC-QUAL-CHECKER-MAC-002');
+  assert.equal(APPLE_ID, '6812432163');
+  const data = { objects: {} };
+  const types = ['com.apple.product-type.application', 'com.apple.product-type.app-extension'];
+  for (const [i, type] of types.entries()) {
+    data.objects['t'+i] = { isa: 'PBXNativeTarget', productType: type, name: 'Misleading identical display name', buildConfigurationList: 'list'+i };
+    data.objects['list'+i] = { buildConfigurations: ['Debug'+i, 'Release'+i, 'Custom'+i] };
+    for (const name of ['Debug', 'Release', 'Custom']) data.objects[name+i] = { name, buildSettings: { PRODUCT_BUNDLE_IDENTIFIER: 'wrong', 'PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]': 'wrong' } };
+  }
+  correctTargetIdentifiers(data);
+  for (const [i, bundle] of [APP, EXT].entries()) for (const name of ['Debug', 'Release', 'Custom']) {
+    const b = data.objects[name+i].buildSettings;
+    assert.equal(b.PRODUCT_BUNDLE_IDENTIFIER, bundle);
+    assert.equal(b['PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]'], bundle);
+    assert.equal(b.DEVELOPMENT_TEAM, TEAM);
+  }
+  const rows = types.map((productType, i) => ({ productType, bundle: [APP, EXT][i] }));
+  verifyResolvedIdentifiers(rows);
+  assert.throws(() => verifyResolvedIdentifiers([rows[0], { ...rows[1], bundle: EXT.replace('.extension', '.Extension') }]));
+  assert.throws(() => verifyResolvedIdentifiers([rows[0], { ...rows[1], bundle: APP }]));
+});
 
 test('JSON commands parse stdout alone; stderr diagnostics never corrupt structured output', () => {
   const run = () => ({ status: 0, stdout: '[{"target":"App"}]\n', stderr: 'xcodebuild: WARNING: destination diagnostic\n' });
@@ -66,7 +90,7 @@ test('Apple workflows dispatch only; unsigned has no secrets; upload defaults of
   }
 });
 test('Apple identifiers, build numbers, encryption and signature assertions stay explicit', () => {
-  assert.equal(APP, 'training.elec.qualification-checker');
+  assert.equal(APP, 'training.elec.qualification.checker');
   assert.equal(EXT, APP + '.extension');
   assert.equal(VERSION, '1.0.0');
   assert.equal(buildNumber('', '45', '2'), '45.2');
@@ -76,7 +100,7 @@ test('Apple identifiers, build numbers, encryption and signature assertions stay
   assert(!src.includes('allowProvisioningUpdates'));
   assert(src.includes('finally { cleanup(); }'));
   assert(src.includes("'delete-keychain'"));
-  assert(src.includes('Generated identifier conflict'));
+  assert(src.includes('Resolved Bundle ID differs'));
   assert(src.includes('help.includes(flag)'));
 });
 test('Unreviewed conversion blocks signing; no fabricated approval', () => {

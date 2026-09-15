@@ -1,5 +1,7 @@
 # Safari local verification
 
+Current authoritative Apple record: Team/App ID Prefix `3XPCC2X77K`; registered containing Bundle ID `training.elec.qualification.checker`; proposed extension ID `training.elec.qualification.checker.extension` (not registered); SKU `ELEC-QUAL-CHECKER-MAC-002`; Apple ID `6812432163`; App Store Connect platform **macOS only**. The previous app record was deleted. The diagnostic corrects target-specific identifiers before validation; no extension registration or signing is authorized. This record supersedes earlier proposed-record wording below.
+
 Update: the team reports no Xcode Cloud Safari packager access. Use [the GitHub macOS diagnostic-first route](safari-github-actions.md). The cloud instructions below are historical alternatives, not the current next action. The current App Store name is UK Electrician Route Checker; actual converter identifiers and signed builds remain pending.
 
 Package prepared; Safari/TestFlight testing and App Store submission pending.
@@ -66,7 +68,7 @@ See [official-source compatibility audit](safari-compatibility.md), [beginner Ap
 
 Safari manifest differs from Chromium only by name: UK Electrician Qualification Checker (36 characters). Firefox-only browser_specific_settings is absent. MV3, action popup, local CSP, approved icons and all 11 non-manifest files are preserved. Safari standards compatibility is an assessment; toolbar layout, module execution, CSP, links and generated containing-app branding must pass on a Mac.
 
-App Store name must be at most 30 characters; proposed UK Electrician Route Checker (28) needs approval/availability confirmation. Confirm Apple team/seller identity, Bundle ID training.elec.qualification-checker, SKU ELEC-QUAL-CHECKER-MAC-001, copyright holder, privacy answers and Safari listing. Identifiers remain unregistered.
+App Store name must be at most 30 characters; proposed UK Electrician Route Checker (28) needs approval/availability confirmation. Confirm Apple team/seller identity, Bundle ID training.elec.qualification.checker, SKU ELEC-QUAL-CHECKER-MAC-002, copyright holder, privacy answers and Safari listing. The containing identifier is registered; the extension identifier remains unregistered.
 
 Pending: Apple packager success, TestFlight installation, actual macOS Safari toolbar/five-route/scroll/reset/keyboard/VoiceOver/scaling/link tests, approved Mac screenshots, privacy confirmation, Charanjit listing approval and explicit submission authority. No publishing or account actions were performed.
 

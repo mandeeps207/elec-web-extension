@@ -1,12 +1,14 @@
 # Safari cloud packaging and Mac acceptance
 
+Current authoritative Apple record: Team/App ID Prefix `3XPCC2X77K`; registered containing Bundle ID `training.elec.qualification.checker`; proposed extension ID `training.elec.qualification.checker.extension` (not registered); SKU `ELEC-QUAL-CHECKER-MAC-002`; Apple ID `6812432163`; App Store Connect platform **macOS only**. The previous app record was deleted. The diagnostic corrects target-specific identifiers before validation; no extension registration or signing is authorized. This record supersedes earlier proposed-record wording below.
+
 Update: the team reports no Xcode Cloud Safari packager access. Use [the GitHub macOS diagnostic-first route](safari-github-actions.md). The cloud instructions below are historical alternatives, not the current next action. The current App Store name is UK Electrician Route Checker; actual converter identifiers and signed builds remain pending.
 
 Package prepared; Safari/TestFlight testing and App Store submission pending. This is a future manual handoff; no steps below were performed by the agent. Local Windows work produces only the ZIP input, not a signed Mac application.
 
 ## Before creating anything
 
-Client decisions: approve a <=30-character App Store name (suggestion UK Electrician Route Checker; requested 36-character name cannot fit), Apple publisher team/account, proposed Bundle ID training.elec.qualification-checker, SKU ELEC-QUAL-CHECKER-MAC-001, copyright holder, Safari listing/privacy answers and Apple distribution authority. Elec Training is the intended display brand; actual seller/developer name comes from the account and cannot be freely assumed. Check existing app records/identifiers first. Do not silently replace them.
+Client decisions: approve a <=30-character App Store name (suggestion UK Electrician Route Checker; requested 36-character name cannot fit), Apple publisher team/account, proposed Bundle ID training.elec.qualification.checker, SKU ELEC-QUAL-CHECKER-MAC-002, copyright holder, Safari listing/privacy answers and Apple distribution authority. Elec Training is the intended display brand; actual seller/developer name comes from the account and cannot be freely assumed. Check existing app records/identifiers first. Do not silently replace them.
 
 Apple access: enrolled Apple Developer Program membership and appropriate App Store Connect access. Creating an app normally requires Account Holder/Admin/App Manager; Apple also documents delegated Developer/Marketing creation access. The account holder must resolve agreements/access if the packager is unavailable. Do not share credentials in project files.
 
