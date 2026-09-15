@@ -129,7 +129,22 @@ export function verifyResolvedIdentifiers(rows) {
   }
 }
 function xcodeArgs(p, scheme, configuration = 'Release') { return ['xcodebuild', '-project', p.project, '-scheme', scheme, '-configuration', configuration, '-destination', 'generic/platform=macOS']; }
-function settings(p, scheme, configuration = 'Release') { return commandJson('Inspect build settings', [...xcodeArgs(p, scheme, configuration), '-showBuildSettings', '-json']); }
+function settings(p, scheme, configuration = 'Release') {
+  // A scheme's settings need not enumerate dependency targets. Query each
+  // product-type-identified target explicitly, including its configurations.
+  return [p.app, p.ext].flatMap(target => commandJson('Inspect target build settings', ['xcodebuild', '-project', p.project, '-target', target.name, '-configuration', configuration, '-sdk', 'macosx', '-showBuildSettings', '-json']));
+}
+export function selectAppScheme(p, candidates) {
+  const objects = p.data.objects;
+  assert(p.app.dependencies.some(id => objects[id]?.target === p.ext.id), 'Containing app must depend on extension');
+  assert(p.app.buildPhases.some(id => {
+    const phase = objects[id];
+    return phase?.isa === 'PBXCopyFilesBuildPhase' && Number(phase.dstSubfolderSpec) === 13 && phase.files.some(f => objects[f]?.fileRef === p.ext.productReference);
+  }), 'Containing app must embed the extension product');
+  const matches = candidates.filter(c => c.settings.some(row => row.buildSettings?.PRODUCT_TYPE === 'com.apple.product-type.application' && row.target === p.app.name));
+  assert.equal(matches.length, 1, 'Expected exactly one containing-app scheme; inspect scheme-settings.json');
+  return matches[0].name;
+}
 function topology(p, scheme, configuration = 'Release') {
   const result = settings(p, scheme, configuration).map(({ target, buildSettings: b }) => ({ target, configuration, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, sandbox: b.ENABLE_APP_SANDBOX, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE, productName: b.FULL_PRODUCT_NAME, version: b.MARKETING_VERSION, buildNumber: b.CURRENT_PROJECT_VERSION }));
   return result.sort((a, b) => a.target.localeCompare(b.target));
@@ -162,12 +177,9 @@ function diagnostic() {
   const p = projectData();
   const list = commandJson('List schemes', ['xcodebuild', '-list', '-json', '-project', p.project]);
   const schemes = list.project.schemes;
-  const matchingSchemes = schemes.filter(name => {
-    const names = settings(p, name).map(v => v.target);
-    return names.includes(p.app.name) && names.includes(p.ext.name) && names.length === 2;
-  });
-  assert.equal(matchingSchemes.length, 1, 'Expected exactly one scheme building the app and extension; inspect generated schemes');
-  const scheme = matchingSchemes[0];
+  const candidates = schemes.map(name => ({ name, settings: commandJson('Inspect scheme build settings', [...xcodeArgs(p, name), '-showBuildSettings', '-json']) }));
+  save(path.join(reportDir, 'scheme-settings.json'), candidates);
+  const scheme = selectAppScheme(p, candidates);
   const original = topology(p, scheme);
   save(path.join(reportDir, 'generated-structure.json'), { project: path.relative(base, p.project), schemes, selectedScheme: scheme, targets: original });
   correctTargetIdentifiers(p.data);

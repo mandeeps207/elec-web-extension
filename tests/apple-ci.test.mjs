@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
@@ -141,3 +141,11 @@ test('Tracked/unignored candidate files contain no credential files or private k
     assert(!new RegExp('-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\\r\\n]+[A-Za-z0-9+/=]{20}').test(text), `Private key material: ${name}`);
   }
 });
+
+ test('App scheme need not enumerate its embedded extension dependency', () => {
+ const p={app:{name:'App',dependencies:['dep'],buildPhases:['embed']},ext:{id:'ext',productReference:'product'},data:{objects:{dep:{target:'ext'},embed:{isa:'PBXCopyFilesBuildPhase',dstSubfolderSpec:13,files:['file']},file:{fileRef:'product'}}}};
+ const candidates=[{name:'App scheme',settings:[{target:'App',buildSettings:{PRODUCT_TYPE:'com.apple.product-type.application'}}]},{name:'Extension scheme',settings:[{target:'Extension',buildSettings:{PRODUCT_TYPE:'com.apple.product-type.app-extension'}}]}];
+ assert.equal(selectAppScheme(p,candidates),'App scheme');
+ assert.throws(()=>selectAppScheme({...p,app:{...p.app,dependencies:[]}},candidates));
+ assert.throws(()=>selectAppScheme({...p,app:{...p.app,buildPhases:[]}},candidates));
+ });
