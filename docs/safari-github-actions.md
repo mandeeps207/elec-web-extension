@@ -73,3 +73,9 @@ All existing archives retained their before/after SHA256 values:
   4d8b5877385e29a3aa3136b9e9d8f7812d981be7811ca3704bba308efcbdcb88
 
 Machine evidence: test-results/apple-ci-verification.json, apple-ci-unit.log and browser-results.json. Existing runtime, manifests and browser ZIP outputs were not changed by this CI work. New files: both workflows, ci/safari-diagnostic-approval.json, scripts/apple-ci.mjs, scripts/apple-input.mjs, tests/apple-ci.test.mjs, .gitattributes and the four Apple CI/setup/compliance/upload guides. Updated .gitignore, package.json, README.md, release-status.json and existing Safari handoff/listing documents. No commit, push, workflow dispatch or Apple account action was performed.
+
+## Observed diagnostic run 34999298612
+
+Conversion succeeded under Xcode 26.3. The subsequent build-settings JSON parsing failed because the command wrapper combined stdout with stderr. Structured commands now parse stdout only; malformed stdout and nonzero command exits still fail. 25 local tests passed after this correction.
+
+The generated project artifact shows containing Bundle ID `training.elec.UK-Electrician-Route-Checker` and extension Bundle ID `training.elec.qualification-checker.Extension` (capital E). These differ from the requested values. The existing mismatch gate remains in place. Do not create another App ID or enable signing; review the target-specific identifier correction first. No actual identifiers, provisioning profiles or approved WebExtension files were changed.

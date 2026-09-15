@@ -34,18 +34,21 @@ export function converterHelp(directory, run = spawnSync) {
   for (const flag of flags) assert(help.includes(flag), `Installed converter lacks ${flag}; inspect converter-help.txt`);
   return help;
 }
-function command(label, args, { input, allowFailure = false } = {}) {
-  const r = spawnSync(args[0], args.slice(1), { input, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 20 * 60 * 1000 });
+export function command(label, args, { input, allowFailure = false, stdoutOnly = false, run = spawnSync } = {}) {
+  const r = run(args[0], args.slice(1), { input, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 20 * 60 * 1000 });
   // Never emit raw command arguments/stdout/stderr: signing tools can echo credentials/profiles.
   events.push({ operation: label, exitCode: r.status });
   if (r.status !== 0 && !allowFailure) throw new Error(`${label} failed (exit ${r.status}); raw output withheld to protect signing material`);
-  return (r.stdout || '') + (r.stderr || '');
+  return stdoutOnly ? (r.stdout || '') : (r.stdout || '') + (r.stderr || '');
 }
-function plist(file) { return JSON.parse(command('Read property list', ['plutil', '-convert', 'json', '-o', '-', file])); }
+export function commandJson(label, args, options = {}) {
+  return JSON.parse(command(label, args, { ...options, stdoutOnly: true }));
+}
+function plist(file) { return commandJson('Read property list', ['plutil', '-convert', 'json', '-o', '-', file]); }
 function profilePlist(file) {
   // Profile plists contain dates/data that plutil's JSON format cannot represent.
   const script = 'import plistlib,json,sys,datetime,base64\np=plistlib.load(open(sys.argv[1],"rb"))\nprint(json.dumps(p,default=lambda v:base64.b64encode(v).decode() if isinstance(v,bytes) else v.isoformat()+"Z" if isinstance(v,datetime.datetime) else str(v)))';
-  return JSON.parse(command('Read profile privately', ['python3', '-c', script, file]));
+  return commandJson('Read profile privately', ['python3', '-c', script, file]);
 }
 function writePlist(file, value) {
   save(file, value);
@@ -100,7 +103,7 @@ function projectData() {
   return { file, project: path.dirname(file), data, targets, app, ext };
 }
 function xcodeArgs(p, scheme) { return ['xcodebuild', '-project', p.project, '-scheme', scheme, '-configuration', 'Release', '-destination', 'generic/platform=macOS']; }
-function settings(p, scheme) { return JSON.parse(command('Inspect build settings', [...xcodeArgs(p, scheme), '-showBuildSettings', '-json'])); }
+function settings(p, scheme) { return commandJson('Inspect build settings', [...xcodeArgs(p, scheme), '-showBuildSettings', '-json']); }
 function topology(p, scheme) {
   const result = settings(p, scheme).map(({ target, buildSettings: b }) => ({ target, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE }));
   return result.sort((a, b) => a.target.localeCompare(b.target));
@@ -131,7 +134,7 @@ function diagnostic() {
   // Preserve Apple's original generated source even when a suffix/structure check stops Phase 1.
   command('Snapshot converter output', ['tar', '-czf', path.join(reportDir, 'generated-project.tar.gz'), '-C', base, '.']);
   const p = projectData();
-  const list = JSON.parse(command('List schemes', ['xcodebuild', '-list', '-json', '-project', p.project]));
+  const list = commandJson('List schemes', ['xcodebuild', '-list', '-json', '-project', p.project]);
   const schemes = list.project.schemes;
   const matchingSchemes = schemes.filter(name => {
     const names = settings(p, name).map(v => v.target);

@@ -258,16 +258,17 @@
       "submittedPackagesUnchanged": true
     },
     "githubActions": {
-      "status": "Prepared locally; unsigned diagnostic not run; signing/export/upload pending",
+      "status": "Conversion succeeded; JSON stream parsing corrected; generated Bundle ID conflicts require review",
       "runner": "macos-15",
       "xcode": "26.3 (17C529)",
       "appBundleId": "training.elec.qualification-checker",
       "expectedExtensionBundleId": "training.elec.qualification-checker.extension",
-      "actualExtensionBundleId": null,
+      "actualExtensionBundleId": "training.elec.qualification-checker.Extension",
       "phase1Passed": false,
       "signingEnabled": false,
       "uploaded": false,
-      "reason": "macOS runner execution requires separately authorized commit/push and manual dispatch"
+      "reason": "Run 34999298612 generated identifiers differ from requested values; no identifiers changed or registered",
+      "actualContainingBundleId": "training.elec.UK-Electrician-Route-Checker"
     }
   }
 }

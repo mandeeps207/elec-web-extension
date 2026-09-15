@@ -6,11 +6,19 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
 const read = p => fs.readFileSync(p, 'utf8');
+
+test('JSON commands parse stdout alone; stderr diagnostics never corrupt structured output', () => {
+  const run = () => ({ status: 0, stdout: '[{"target":"App"}]\n', stderr: 'xcodebuild: WARNING: destination diagnostic\n' });
+  assert.deepEqual(commandJson('settings', ['xcodebuild'], { run }), [{ target: 'App' }]);
+  assert(command('text output', ['tool'], { run }).includes('WARNING'));
+  assert.throws(() => commandJson('settings', ['tool'], { run: () => ({ status: 1, stdout: '{}', stderr: 'error' }) }), /failed/);
+  assert.throws(() => commandJson('settings', ['tool'], { run: () => ({ status: 0, stdout: '{} trailing', stderr: '' }) }), SyntaxError);
+});
 
 test('Converter help accepts validated usage output on 64 and preserves failed probe evidence', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'elec-converter-help-'));
