@@ -83,3 +83,7 @@ Conversion succeeded under Xcode 26.3. The subsequent build-settings JSON parsin
 The generated project artifact shows containing Bundle ID `training.elec.UK-Electrician-Route-Checker` and extension Bundle ID `training.elec.qualification-checker.Extension` (capital E). These differ from the requested values. The existing mismatch gate remains in place. Do not create another App ID or enable signing; review the target-specific identifier correction first. No actual identifiers, provisioning profiles or approved WebExtension files were changed.
 
 Historical evidence only: the correction now assigns the new registered app ID and proposed extension ID by product type before checking resolved settings. The old record is deleted and must not be used.
+
+## Review of successful run 35002432895
+
+Run at commit 3b72b3a succeeded: Debug/Release target IDs and built product IDs match the new app/extension values; version 1.0.0, build 4.1, macOS-only, encryption false, approved runtime hash unchanged. Signing approval remains false: source inspection found the generated ViewController.swift Safari settings helper still referenced the capitalized extension suffix. The generator now corrects that native declaration to the exact target ID and tests missing/duplicate declarations. This changes only the generated native wrapper; a fresh diagnostic build and review are required before accepting its fingerprint. No signed build, Safari UI test or artwork approval is claimed.

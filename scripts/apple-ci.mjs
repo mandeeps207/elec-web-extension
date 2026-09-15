@@ -161,6 +161,11 @@ function safeGeneratedSource() {
   const deny = /\b(?:URLSession|NSURLConnection|CryptoKit|CommonCrypto|WKUserScript)\b|https?:\/\//;
   for (const f of walk(base).filter(p => /\.(swift|m|h)$/.test(p))) assert(!deny.test(fs.readFileSync(f, 'utf8')), 'Unexpected generated native networking/crypto; manual source review required');
 }
+export function correctNativeIdentifier(text) {
+  const declaration = /let extensionBundleIdentifier\s*=\s*"[^"]+"/g;
+  assert.equal([...text.matchAll(declaration)].length, 1, 'Expected one native Safari settings identifier declaration');
+  return text.replace(declaration, `let extensionBundleIdentifier = "${EXT}"`);
+}
 function diagnostic() {
   assert.equal(process.platform, 'darwin', 'Apple converter requires macOS; not executed on Windows');
   assert(!fs.existsSync(base), 'Use a clean runner/generated directory');
@@ -216,6 +221,10 @@ function diagnostic() {
     }
   }
   writePlist(p.file, p.data);
+  const controllers = walk(base).filter(f => f.endsWith('.swift') && /let extensionBundleIdentifier\s*=/.test(fs.readFileSync(f, 'utf8')));
+  assert.equal(controllers.length, 1, 'Expected one containing-app Safari settings helper');
+  save(controllers[0], correctNativeIdentifier(fs.readFileSync(controllers[0], 'utf8')));
+  assert(fs.readFileSync(controllers[0], 'utf8').includes(`let extensionBundleIdentifier = "${EXT}"`));
   const corrected = Object.fromEntries(['Debug', 'Release'].map(c => [c, topology(p, scheme, c)]));
   for (const rows of Object.values(corrected)) verifyResolvedIdentifiers(rows);
   save(path.join(reportDir, 'corrected-structure.json'), { project: path.relative(base, p.project), scheme, team: TEAM, containingBundleId: APP, extensionBundleId: EXT, sku: SKU, appleId: APPLE_ID, configurations: corrected });

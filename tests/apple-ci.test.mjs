@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
@@ -149,3 +149,9 @@ test('Tracked/unignored candidate files contain no credential files or private k
  assert.throws(()=>selectAppScheme({...p,app:{...p.app,dependencies:[]}},candidates));
  assert.throws(()=>selectAppScheme({...p,app:{...p.app,buildPhases:[]}},candidates));
  });
+
+test('Native Safari settings helper uses the exact corrected extension identifier', () => {
+ assert.equal(correctNativeIdentifier('let extensionBundleIdentifier = "wrong.Extension"'), 'let extensionBundleIdentifier = "'+EXT+'"');
+ assert.throws(()=>correctNativeIdentifier('no identifier'));
+ assert.throws(()=>correctNativeIdentifier('let extensionBundleIdentifier = "a"; let extensionBundleIdentifier = "b"'));
+});
