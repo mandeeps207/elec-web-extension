@@ -216,5 +216,58 @@
       "dist/release-candidate/elec-training-qualification-checker-chromium-v1.0.0-release-candidate.zip": "ec0dcf5be6fae4d98f2a74bd249b40e7d94854c5d2c6e99a89492f923612741b"
     },
     "runtimeChanged": false
+  },
+  "submissionReports": {
+    "source": "User report in Safari task attachment",
+    "browsers": {
+      "firefox": "Submitted for review",
+      "chrome": "Submitted for review",
+      "edge": "Submitted for review",
+      "opera": "Submitted for review"
+    },
+    "verifiedInStore": false
+  },
+  "safari": {
+    "status": "Package prepared; Safari/TestFlight testing and App Store submission pending.",
+    "platforms": [
+      "macOS"
+    ],
+    "version": "1.0.0",
+    "requestedAppName": "UK Electrician Qualification Checker",
+    "proposedStoreName": "UK Electrician Route Checker",
+    "storeNameConfirmed": true,
+    "publisher": "Elec Training",
+    "proposedBundleId": "training.elec.qualification-checker",
+    "proposedSku": "ELEC-QUAL-CHECKER-MAC-001",
+    "identifiersRegistered": false,
+    "packagerSucceeded": false,
+    "testFlightPassed": false,
+    "macSafariToolbarPassed": false,
+    "layoutAndLinksPassed": false,
+    "screenshotsApproved": false,
+    "appPrivacyConfirmed": false,
+    "charanjitListingApproved": false,
+    "submissionAuthorized": false,
+    "package": {
+      "path": "dist/safari/elec-training-qualification-checker-safari-v1.0.0-packager-input.zip",
+      "sha256": "4d8b5877385e29a3aa3136b9e9d8f7812d981be7811ca3704bba308efcbdcb88",
+      "bytes": 187303,
+      "verification": "docs/safari-verification.md",
+      "localValidation": "PASS",
+      "independentExtraction": "PASS",
+      "submittedPackagesUnchanged": true
+    },
+    "githubActions": {
+      "status": "Prepared locally; unsigned diagnostic not run; signing/export/upload pending",
+      "runner": "macos-15",
+      "xcode": "26.3 (17C529)",
+      "appBundleId": "training.elec.qualification-checker",
+      "expectedExtensionBundleId": "training.elec.qualification-checker.extension",
+      "actualExtensionBundleId": null,
+      "phase1Passed": false,
+      "signingEnabled": false,
+      "uploaded": false,
+      "reason": "macOS runner execution requires separately authorized commit/push and manual dispatch"
+    }
   }
 }

@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Local development of the Elec Training qualification checker",
-  "engines": { "node": ">=22.19.0" },
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:release": "node scripts/build.mjs --release",
@@ -18,7 +20,12 @@
     "test": "node --test tests/*.test.mjs",
     "check:syntax": "node scripts/syntax.mjs",
     "lint": "web-ext lint --source-dir build/development/firefox --warnings-as-errors",
-    "test:browser": "node scripts/browser-test.mjs"
+    "test:browser": "node scripts/browser-test.mjs",
+    "build:safari": "node scripts/safari.mjs build",
+    "validate:safari": "node scripts/safari.mjs validate",
+    "package:safari": "node scripts/safari.mjs package",
+    "test:apple-ci": "node --test tests/apple-ci.test.mjs",
+    "prepare:apple-input": "node scripts/apple-input.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

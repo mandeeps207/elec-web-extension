@@ -1,0 +1,6 @@
+src/popup/* text eol=lf
+src/data/*.js text eol=lf
+manifests/*.json text eol=lf
+scripts/*.mjs text eol=lf
+.github/workflows/*.yml text eol=lf
+*.png binary

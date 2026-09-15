@@ -1,0 +1,358 @@
+// macOS-only Apple tooling. No shell interpolation, automatic provisioning or review submission.
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { createHash, randomBytes } from 'node:crypto';
+import assert from 'node:assert/strict';
+import { pathToFileURL } from 'node:url';
+
+export const APP = 'training.elec.qualification-checker';
+export const EXT = APP + '.extension';
+export const VERSION = '1.0.0';
+const INPUT_HASH = '4d8b5877385e29a3aa3136b9e9d8f7812d981be7811ca3704bba308efcbdcb88';
+const base = path.resolve('build/generated/apple');
+const output = path.resolve('build/apple-artifacts');
+const privateDir = path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'elec-apple-ci');
+const keychain = path.join(privateDir, 'signing.keychain-db');
+const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+const save = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n'); };
+const events = [];
+function command(label, args, { input, allowFailure = false } = {}) {
+  const r = spawnSync(args[0], args.slice(1), { input, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 20 * 60 * 1000 });
+  // Never emit raw command arguments/stdout/stderr: signing tools can echo credentials/profiles.
+  events.push({ operation: label, exitCode: r.status });
+  if (r.status !== 0 && !allowFailure) throw new Error(`${label} failed (exit ${r.status}); raw output withheld to protect signing material`);
+  return (r.stdout || '') + (r.stderr || '');
+}
+function plist(file) { return JSON.parse(command('Read property list', ['plutil', '-convert', 'json', '-o', '-', file])); }
+function profilePlist(file) {
+  // Profile plists contain dates/data that plutil's JSON format cannot represent.
+  const script = 'import plistlib,json,sys,datetime,base64\np=plistlib.load(open(sys.argv[1],"rb"))\nprint(json.dumps(p,default=lambda v:base64.b64encode(v).decode() if isinstance(v,bytes) else v.isoformat()+"Z" if isinstance(v,datetime.datetime) else str(v)))';
+  return JSON.parse(command('Read profile privately', ['python3', '-c', script, file]));
+}
+function writePlist(file, value) {
+  save(file, value);
+  command('Write property list', ['plutil', '-convert', 'xml1', file]);
+}
+function walk(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+    const p = path.join(dir, e.name);
+    assert(!e.isSymbolicLink(), 'Unexpected symlink in generated source');
+    return e.isDirectory() ? walk(p) : [p];
+  }).sort();
+}
+export function buildNumber(override = '', run = process.env.GITHUB_RUN_NUMBER, attempt = process.env.GITHUB_RUN_ATTEMPT) {
+  const number = override || `${run}.${attempt}`;
+  assert(/^[1-9]\d{0,3}(?:\.(?:0|[1-9]\d?)){0,2}$/.test(number), 'Build number must use Apple-compatible positive major (1-9999), minor/patch (0-99); set override if run counter exceeds limits');
+  return number;
+}
+export function checkEntitlements(e, bundle, team, signed = false) {
+  const allowed = ['com.apple.security.app-sandbox'];
+  if (signed) allowed.push('com.apple.application-identifier', 'application-identifier', 'com.apple.developer.team-identifier');
+  assert(Object.keys(e).every(k => allowed.includes(k)), 'Unexpected entitlement; inspect Phase 1 evidence before changing policy');
+  assert.equal(e['com.apple.security.app-sandbox'], true, 'App sandbox is required');
+  for (const k of ['com.apple.application-identifier', 'application-identifier']) if (k in e) assert.equal(e[k], `${team}.${bundle}`);
+  if ('com.apple.developer.team-identifier' in e) assert.equal(e['com.apple.developer.team-identifier'], team);
+}
+export function checkProfile(p, bundle, team, identityHash) {
+  assert.deepEqual(p.TeamIdentifier, [team]);
+  assert(p.Platform?.some(v => ['OSX', 'macOS'].includes(v)), 'Not a macOS profile');
+  assert(!p.ProvisionedDevices && !p.ProvisionsAllDevices, 'Development/ad-hoc/direct distribution profile rejected');
+  assert(new Date(p.ExpirationDate) > new Date(), 'Expired provisioning profile');
+  const e = p.Entitlements;
+  assert.equal(e['com.apple.application-identifier'] || e['application-identifier'], `${team}.${bundle}`, 'Profile Bundle ID mismatch');
+  assert(e['get-task-allow'] !== true && e['com.apple.security.get-task-allow'] !== true, 'Development profile rejected');
+  assert.equal(e['com.apple.developer.team-identifier'], team);
+  assert.equal(e['beta-reports-active'], true, 'Expected Mac App Store distribution profile');
+  assert(p.DeveloperCertificates?.some(b64 => createHash('sha1').update(Buffer.from(b64, 'base64')).digest('hex').toUpperCase() === identityHash), 'Profile does not contain imported app distribution certificate');
+  assert(/^[A-Fa-f0-9-]{36}$/.test(p.UUID), 'Invalid profile UUID');
+}
+export function requireApproval(report, a = readJson('ci/safari-diagnostic-approval.json')) {
+  assert(a.approved === true && /^https:\/\/github\.com\/.+\/actions\/runs\/\d+$/.test(a.runUrl || '') && a.reviewedBy && /^[a-f0-9]{64}$/.test(a.fingerprint || ''), 'Phase 1 has not been reviewed; signing remains blocked');
+  if (report) assert.equal(a.fingerprint, report.fingerprint, 'Generated structure/native code differs from reviewed Phase 1');
+}
+function projectData() {
+  const projects = walk(base).filter(p => p.endsWith('.xcodeproj/project.pbxproj'));
+  assert.equal(projects.length, 1, 'Expected exactly one generated Xcode project');
+  const file = projects[0], data = plist(file), objects = data.objects;
+  const targets = Object.entries(objects).filter(([, o]) => o.isa === 'PBXNativeTarget').map(([id, o]) => ({ id, ...o }));
+  assert.equal(targets.length, 2, 'Expected precisely two native targets; stop on converter drift');
+  const app = targets.find(t => t.productType === 'com.apple.product-type.application');
+  const ext = targets.find(t => t.productType === 'com.apple.product-type.app-extension');
+  assert(app && ext, 'Expected a containing application and embedded extension');
+  return { file, project: path.dirname(file), data, targets, app, ext };
+}
+function xcodeArgs(p, scheme) { return ['xcodebuild', '-project', p.project, '-scheme', scheme, '-configuration', 'Release', '-destination', 'generic/platform=macOS']; }
+function settings(p, scheme) { return JSON.parse(command('Inspect build settings', [...xcodeArgs(p, scheme), '-showBuildSettings', '-json'])); }
+function topology(p, scheme) {
+  const result = settings(p, scheme).map(({ target, buildSettings: b }) => ({ target, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE }));
+  return result.sort((a, b) => a.target.localeCompare(b.target));
+}
+function verifyResources(dir) {
+  const manifests = walk(dir).filter(p => path.basename(p) === 'manifest.json');
+  assert.equal(manifests.length, 1, 'Expected exactly one embedded WebExtension');
+  const root = path.dirname(manifests[0]);
+  const input = path.resolve('build/generated/safari-input');
+  for (const source of walk(input)) assert.deepEqual(fs.readFileSync(path.join(root, path.relative(input, source))), fs.readFileSync(source), 'Approved WebExtension bytes changed');
+  return root;
+}
+function safeGeneratedSource() {
+  const deny = /\b(?:URLSession|NSURLConnection|CryptoKit|CommonCrypto|WKUserScript)\b|https?:\/\//;
+  for (const f of walk(base).filter(p => /\.(swift|m|h)$/.test(p))) assert(!deny.test(fs.readFileSync(f, 'utf8')), 'Unexpected generated native networking/crypto; manual source review required');
+}
+function diagnostic() {
+  assert.equal(process.platform, 'darwin', 'Apple converter requires macOS; not executed on Windows');
+  assert(!fs.existsSync(base), 'Use a clean runner/generated directory');
+  fs.mkdirSync(base, { recursive: true });
+  const reportDir = path.join(output, 'diagnostic');
+  fs.mkdirSync(reportDir, { recursive: true });
+  const version = command('Xcode version', ['xcodebuild', '-version']).trim();
+  assert.equal(version, 'Xcode 26.3\nBuild version 17C529', 'Pinned Xcode not installed; do not silently select another version');
+  assert.equal(digest(fs.readFileSync('build/generated/safari-input.zip')), INPUT_HASH);
+  const help = command('Converter help', ['xcrun', 'safari-web-extension-converter', '--help']);
+  save(path.join(reportDir, 'converter-help.txt'), help);
+  const flags = ['--project-location', '--app-name', '--bundle-identifier', '--macos-only', '--copy-resources', '--no-open', '--no-prompt', '--swift'];
+  for (const flag of flags) assert(help.includes(flag), `Installed converter lacks ${flag}; stop rather than guessing`);
+  command('Convert Safari resources', ['xcrun', 'safari-web-extension-converter', path.resolve('build/generated/safari-input'), '--project-location', base, '--app-name', 'UK Electrician Route Checker', '--bundle-identifier', APP, '--macos-only', '--copy-resources', '--no-open', '--no-prompt', '--swift']);
+  // Preserve Apple's original generated source even when a suffix/structure check stops Phase 1.
+  command('Snapshot converter output', ['tar', '-czf', path.join(reportDir, 'generated-project.tar.gz'), '-C', base, '.']);
+  const p = projectData();
+  const list = JSON.parse(command('List schemes', ['xcodebuild', '-list', '-json', '-project', p.project]));
+  const schemes = list.project.schemes;
+  const matchingSchemes = schemes.filter(name => {
+    const names = settings(p, name).map(v => v.target);
+    return names.includes(p.app.name) && names.includes(p.ext.name) && names.length === 2;
+  });
+  assert.equal(matchingSchemes.length, 1, 'Expected exactly one scheme building the app and extension; inspect generated schemes');
+  const scheme = matchingSchemes[0];
+  const original = topology(p, scheme);
+  save(path.join(reportDir, 'generated-structure.json'), { project: path.relative(base, p.project), schemes, selectedScheme: scheme, targets: original });
+  for (const [target, expected] of [[p.app, APP], [p.ext, EXT]]) {
+    const b = original.find(v => v.target === target.name);
+    assert.equal(b?.bundle, expected, `Generated identifier conflict for ${target.name}: ${b?.bundle}; do not register another App ID`);
+    assert.equal(b.platform, 'macosx', 'Only macOS is permitted');
+    assert(b.plist && !b.plist.includes('$'), 'Concrete Info.plist path required');
+    const info = path.resolve(path.dirname(p.project), b.plist);
+    assert(info.startsWith(base + path.sep));
+    const value = plist(info);
+    value.ITSAppUsesNonExemptEncryption = false;
+    value.CFBundleShortVersionString = VERSION;
+    value.CFBundleVersion = '$(CURRENT_PROJECT_VERSION)';
+    writePlist(info, value);
+    assert.equal(plist(info).ITSAppUsesNonExemptEncryption, false);
+    const ent = path.resolve(path.dirname(p.project), b.entitlements);
+    assert(ent.startsWith(base + path.sep));
+    checkEntitlements(plist(ent), expected);
+    for (const id of p.data.objects[target.buildConfigurationList].buildConfigurations) {
+      const settings = p.data.objects[id].buildSettings;
+      settings.PRODUCT_BUNDLE_IDENTIFIER = expected;
+      settings.MARKETING_VERSION = VERSION;
+      settings.CURRENT_PROJECT_VERSION = buildNumber(process.env.BUILD_OVERRIDE || '', process.env.GITHUB_RUN_NUMBER || '1', process.env.GITHUB_RUN_ATTEMPT || '1');
+      settings.SKIP_INSTALL = target === p.app ? 'NO' : 'YES';
+      settings.CODE_SIGN_STYLE = 'Manual';
+      settings.INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = 'NO';
+      settings.ENABLE_APP_SANDBOX = 'YES';
+    }
+  }
+  writePlist(p.file, p.data);
+  safeGeneratedSource();
+  verifyResources(base);
+  // Stable reviewed evidence excludes random PBX object IDs and build-number overrides.
+  const nativeHashes = Object.fromEntries(walk(base).filter(f => /\.(swift|m|h|html|js|css|plist|entitlements|png)$/.test(f)).map(f => [path.relative(base, f).split(path.sep).join('/'), digest(fs.readFileSync(f))]));
+  const evidence = { xcode: version, converterHelpHash: digest(help), scheme, targets: original, nativeHashes, inputHash: INPUT_HASH };
+  const report = { ...evidence, fingerprint: digest(JSON.stringify(evidence)), unsignedBuild: 'pending' };
+  save(path.join(reportDir, 'diagnostic.json'), report);
+  if (process.argv.includes('--approved')) requireApproval(report);
+  command('Unsigned macOS build', [...xcodeArgs(p, scheme), '-derivedDataPath', path.join(base, 'DerivedData'), 'CODE_SIGNING_ALLOWED=NO', 'CODE_SIGNING_REQUIRED=NO', 'build']);
+  const productName = settings(p, scheme).find(v => v.target === p.app.name).buildSettings.FULL_PRODUCT_NAME;
+  assert(productName?.endsWith('.app') && path.basename(productName) === productName, 'Unexpected app product name');
+  const app = path.join(base, 'DerivedData/Build/Products/Release', productName);
+  verifyProduct(app, false);
+  report.unsignedBuild = 'PASS';
+  save(path.join(reportDir, 'diagnostic.json'), report);
+  // Project snapshot excludes DerivedData, build logs, profiles and credentials.
+  command('Archive generated project', ['tar', '--exclude=DerivedData', '-czf', path.join(reportDir, 'generated-project.tar.gz'), '-C', base, '.']);
+  save(path.join(base, 'state.json'), { scheme, appName: p.app.name, extensionName: p.ext.name });
+  console.log('PASS: unsigned build and exact IDs; inspect diagnostic artifacts before authorizing signing');
+}
+function verifyProduct(app, signed, team) {
+  assert(fs.existsSync(app), 'Containing app missing');
+  const plugins = path.join(app, 'Contents/PlugIns');
+  assert(fs.existsSync(plugins), 'Embedded .appex missing');
+  const extensions = fs.readdirSync(plugins).filter(f => f.endsWith('.appex'));
+  assert.equal(extensions.length, 1, 'Exactly one .appex required');
+  const ext = path.join(plugins, extensions[0]);
+  for (const [product, bundle] of [[app, APP], [ext, EXT]]) {
+    const info = plist(path.join(product, 'Contents/Info.plist'));
+    assert.equal(info.CFBundleIdentifier, bundle);
+    assert.equal(info.CFBundleShortVersionString, VERSION);
+    assert.equal(info.CFBundleVersion, buildNumber(process.env.BUILD_OVERRIDE || '', process.env.GITHUB_RUN_NUMBER || '1', process.env.GITHUB_RUN_ATTEMPT || '1'));
+    assert.equal(info.ITSAppUsesNonExemptEncryption, false);
+    if (product === ext) assert.equal(info.NSExtension?.NSExtensionPointIdentifier, 'com.apple.Safari.web-extension');
+    if (signed) {
+      command('Verify code signature', ['codesign', '--verify', '--deep', '--strict', product]);
+      const meta = command('Inspect signing identity', ['codesign', '-dv', '--verbose=4', product]);
+      assert(meta.includes(`TeamIdentifier=${team}`) && meta.includes('Authority=Apple Distribution:'), 'Wrong signing identity/team');
+      const xml = command('Inspect signed entitlements', ['codesign', '-d', '--entitlements', ':-', product]);
+      const start = xml.indexOf('<?xml'), end = xml.indexOf('</plist>') + 8;
+      assert(start >= 0 && end > start);
+      const ef = path.join(privateDir, 'signed-entitlements.plist');
+      save(ef, xml.slice(start, end));
+      checkEntitlements(plist(ef), bundle, team, true);
+    }
+  }
+  verifyResources(ext);
+  // Reject non-runtime private/development files; native templates are separately fingerprint-reviewed.
+  for (const f of walk(app)) {
+    assert(!/\.(?:p12|p8|pem|key|log|md)$|(?:^|[/\\])(?:node_modules|\.git|tests|internal|store-listings)(?:[/\\]|$)/i.test(f), 'Unexpected private/unrelated product file');
+    if (/\.(?:html|css|js|json|strings)$/.test(f)) assert(!/\b(?:DEV|draft|placeholder|unapproved)\b|not for (?:public )?release|written client chat/i.test(fs.readFileSync(f, 'utf8')), 'Non-production/private presentation in generated product');
+  }
+  return { app: APP, extension: EXT, version: VERSION, encryption: false, signaturesVerified: signed };
+}
+function decodeSecret(name, filename) {
+  assert(process.env[name], `Missing required secret ${name}`);
+  assert(/^[A-Za-z0-9+/=\s]+$/.test(process.env[name]), `Invalid Base64 secret ${name}`);
+  const dest = path.join(privateDir, filename);
+  fs.writeFileSync(dest, Buffer.from(process.env[name], 'base64'), { mode: 0o600 });
+  return dest;
+}
+function signed() {
+  const report = readJson(path.join(output, 'diagnostic/diagnostic.json'));
+  requireApproval(report);
+  assert.equal(report.unsignedBuild, 'PASS');
+  assert.equal(process.env.BUILD_CONFIGURATION || 'Release', 'Release');
+  const team = process.env.APPLE_TEAM_ID;
+  assert(/^[A-Z0-9]{10}$/.test(team || ''), 'Missing/invalid APPLE_TEAM_ID');
+  assert(process.env.APPLE_CERTIFICATE_PASSWORD, 'Missing APPLE_CERTIFICATE_PASSWORD');
+  fs.mkdirSync(privateDir, { recursive: true, mode: 0o700 });
+  const state = readJson(path.join(base, 'state.json'));
+  const p = projectData();
+  const password = randomBytes(32).toString('hex');
+  const oldKeychains = command('Read keychain search list', ['security', 'list-keychains', '-d', 'user']);
+  save(path.join(privateDir, 'old-keychains.json'), [...oldKeychains.matchAll(/"([^"]+)"/g)].map(m => m[1]));
+  try {
+    const cert = decodeSecret('APPLE_CERTIFICATE_P12_BASE64', 'distribution.p12');
+    command('Create temporary keychain', ['security', 'create-keychain', '-p', password, keychain]);
+    command('Unlock temporary keychain', ['security', 'unlock-keychain', '-p', password, keychain]);
+    command('Set keychain timeout', ['security', 'set-keychain-settings', '-lut', '3600', keychain]);
+    command('Import distribution identities', ['security', 'import', cert, '-k', keychain, '-P', process.env.APPLE_CERTIFICATE_PASSWORD, '-T', '/usr/bin/codesign', '-T', '/usr/bin/productbuild', '-T', '/usr/bin/productsign']);
+    command('Set key partition access', ['security', 'set-key-partition-list', '-S', 'apple-tool:,apple:,codesign:', '-k', password, keychain]);
+    command('Select temporary keychain', ['security', 'list-keychains', '-d', 'user', '-s', keychain, ...readJson(path.join(privateDir, 'old-keychains.json'))]);
+    const ids = command('Inspect distribution identities', ['security', 'find-identity', '-v', keychain]);
+    const identities = [...ids.matchAll(/([A-F0-9]{40}) "([^"]+)"/g)].map(m => ({ hash: m[1], name: m[2] }));
+    const appIds = identities.filter(v => v.name.startsWith('Apple Distribution:') && v.name.endsWith(`(${team})`));
+    const installerIds = identities.filter(v => v.name.startsWith('3rd Party Mac Developer Installer:') && v.name.endsWith(`(${team})`));
+    assert.equal(appIds.length, 1, 'P12 must contain exactly one Apple Distribution private-key identity for this team');
+    assert.equal(installerIds.length, 1, 'P12 also needs one Mac Installer Distribution private-key identity for App Store .pkg');
+    const appIdentity = appIds[0], installer = installerIds[0];
+    const profiles = {};
+    for (const [target, bundle, secret] of [[p.app, APP, 'APPLE_APP_PROFILE_BASE64'], [p.ext, EXT, 'APPLE_EXTENSION_PROFILE_BASE64']]) {
+      const encoded = decodeSecret(secret, `${target.id}.provisionprofile`);
+      const decoded = path.join(privateDir, `${target.id}.plist`);
+      command('Decode provisioning profile privately', ['security', 'cms', '-D', '-i', encoded, '-o', decoded]);
+      const profile = profilePlist(decoded);
+      checkProfile(profile, bundle, team, appIdentity.hash);
+      profiles[bundle] = profile.UUID;
+      // Xcode 26's recognized profile location; only our files are removed during cleanup.
+      const installDir = path.join(os.homedir(), 'Library/Developer/Xcode/UserData/Provisioning Profiles');
+      fs.mkdirSync(installDir, { recursive: true });
+      const installed = path.join(installDir, profile.UUID + '.provisionprofile');
+      assert(!fs.existsSync(installed), 'Refusing to overwrite an existing provisioning profile');
+      const ledger = path.join(privateDir, 'installed-profiles.json');
+      save(ledger, [...(fs.existsSync(ledger) ? readJson(ledger) : []), installed]);
+      fs.copyFileSync(encoded, installed);
+      for (const id of p.data.objects[target.buildConfigurationList].buildConfigurations) {
+        Object.assign(p.data.objects[id].buildSettings, { DEVELOPMENT_TEAM: team, CODE_SIGN_STYLE: 'Manual', CODE_SIGN_IDENTITY: appIdentity.hash, PROVISIONING_PROFILE_SPECIFIER: profile.UUID, OTHER_CODE_SIGN_FLAGS: `--keychain ${keychain}` });
+      }
+    }
+    writePlist(p.file, p.data);
+    const after = topology(p, state.scheme);
+    assert.deepEqual(after.map(v => v.bundle).sort(), [APP, EXT].sort());
+    const archive = path.join(base, 'Safari.xcarchive');
+    command('Archive signed macOS application', [...xcodeArgs(p, state.scheme), '-archivePath', archive, '-derivedDataPath', path.join(base, 'SignedDerivedData'), 'archive']);
+    const apps = fs.readdirSync(path.join(archive, 'Products/Applications')).filter(n => n.endsWith('.app'));
+    assert.equal(apps.length, 1);
+    const metadata = verifyProduct(path.join(archive, 'Products/Applications', apps[0]), true, team);
+    const exportHelp = command('Inspect export options', ['xcodebuild', '-help'], { allowFailure: true });
+    for (const key of ['app-store-connect', 'installerSigningCertificate', 'provisioningProfiles', 'manageAppVersionAndBuildNumber']) assert(exportHelp.includes(key), `Installed Xcode export help lacks ${key}; stop`);
+    const options = path.join(privateDir, 'ExportOptions.plist');
+    writePlist(options, { method: 'app-store-connect', destination: 'export', signingStyle: 'manual', teamID: team, signingCertificate: appIdentity.hash, installerSigningCertificate: installer.hash, provisioningProfiles: profiles, manageAppVersionAndBuildNumber: false, stripSwiftSymbols: true });
+    const exported = path.join(base, 'export');
+    command('Export App Store package', ['xcodebuild', '-exportArchive', '-archivePath', archive, '-exportPath', exported, '-exportOptionsPlist', options]);
+    const packages = walk(exported).filter(f => f.endsWith('.pkg'));
+    assert.equal(packages.length, 1, 'Expected exactly one exported macOS .pkg');
+    const sig = command('Verify installer signature', ['pkgutil', '--check-signature', packages[0]]);
+    assert(sig.includes(installer.name), 'Exported package has wrong installer identity');
+    const expanded = path.join(base, 'expanded-package');
+    command('Inspect exported payload', ['pkgutil', '--expand-full', packages[0], expanded]);
+    const exportedApps = walk(expanded).filter(f => f.endsWith('.app/Contents/Info.plist'));
+    assert.equal(exportedApps.length, 1, 'Expected one application in exported installer');
+    verifyProduct(path.resolve(exportedApps[0], '../..'), true, team);
+    const dest = path.join(output, 'signed');
+    fs.mkdirSync(dest, { recursive: true });
+    const pkg = path.join(dest, 'elec-training-qualification-checker-macos-v1.0.0.pkg');
+    fs.copyFileSync(packages[0], pkg);
+    save(path.join(dest, 'metadata.json'), { ...metadata, build: buildNumber(process.env.BUILD_OVERRIDE), teamMatches: true, appStoreInstallerSignatureVerified: true, inputHash: INPUT_HASH });
+    save(path.join(dest, 'sha256.txt'), `${digest(fs.readFileSync(pkg))}  ${path.basename(pkg)}\n`);
+    save(path.join(dest, 'export-compliance.json'), { ITSAppUsesNonExemptEncryption: false, archiveVerified: true, exportVerified: true, appleExemptionGranted: false });
+    // Raw archives include embedded profiles. Omit them from CI artifacts rather than altering signed products.
+    save(path.join(dest, 'archive-report.json'), { archived: true, signedArchiveValidated: true, archivedArtifactOmitted: 'Avoid publishing embedded provisioning profiles separately; signed install package retains Apple-required embedded profiles.' });
+    console.log('PASS: signed archive and exported .pkg verified; no Apple upload performed by build mode');
+  } finally { cleanup(); }
+}
+function upload() {
+  assert.equal(process.env.UPLOAD_AUTHORIZED, 'true', 'Explicit upload authorization required');
+  requireApproval(readJson(path.join(output, 'diagnostic/diagnostic.json')));
+  for (const key of ['APPSTORE_API_KEY_ID', 'APPSTORE_API_ISSUER_ID']) assert(process.env[key], `Missing ${key}`);
+  assert(/^[A-Z0-9]+$/.test(process.env.APPSTORE_API_KEY_ID));
+  assert(/^[a-fA-F0-9-]{36}$/.test(process.env.APPSTORE_API_ISSUER_ID));
+  const pkg = path.join(output, 'signed/elec-training-qualification-checker-macos-v1.0.0.pkg');
+  assert.equal(fs.readFileSync(path.join(output, 'signed/sha256.txt'), 'utf8').split(' ')[0], digest(fs.readFileSync(pkg)));
+  fs.mkdirSync(privateDir, { recursive: true, mode: 0o700 });
+  try {
+    const key = decodeSecret('APPSTORE_API_PRIVATE_KEY_BASE64', `AuthKey_${process.env.APPSTORE_API_KEY_ID}.p8`);
+    assert(fs.readFileSync(key, 'utf8').includes('-----BEGIN PRIVATE KEY-----'), 'Expected an App Store Connect P8 key');
+    const help = command('Inspect upload tool', ['xcrun', 'altool', '--help'], { allowFailure: true });
+    for (const flag of ['--validate-app', '--upload-app', '--apiKey', '--apiIssuer', 'API_PRIVATE_KEYS_DIR']) assert(help.includes(flag), `Installed altool lacks ${flag}; do not use guessed upload arguments`);
+    // Apple's documented altool key search directory override; never place P8 inside the workspace.
+    process.env.API_PRIVATE_KEYS_DIR = privateDir;
+    const args = ['-f', pkg, '-t', 'macos', '--apiKey', process.env.APPSTORE_API_KEY_ID, '--apiIssuer', process.env.APPSTORE_API_ISSUER_ID, '--output-format', 'json'];
+    command('Validate package with Apple', ['xcrun', 'altool', '--validate-app', ...args]);
+    command('Upload package to Apple', ['xcrun', 'altool', '--upload-app', ...args]);
+    save(path.join(output, 'signed/apple-upload.json'), { uploadCommandSucceeded: true, submittedForReview: false, note: 'Check App Store Connect for processing outcome; no raw Apple response published.' });
+  } finally { delete process.env.API_PRIVATE_KEYS_DIR; cleanup(); }
+}
+function cleanup() {
+  if (!fs.existsSync(privateDir)) return;
+  if (process.platform === 'darwin') {
+    const old = path.join(privateDir, 'old-keychains.json');
+    if (fs.existsSync(old)) command('Restore keychains', ['security', 'list-keychains', '-d', 'user', '-s', ...readJson(old)], { allowFailure: true });
+    if (fs.existsSync(keychain)) command('Delete temporary keychain', ['security', 'delete-keychain', keychain], { allowFailure: true });
+  }
+  const ledger = path.join(privateDir, 'installed-profiles.json');
+  if (fs.existsSync(ledger)) for (const f of readJson(ledger)) {
+    assert(path.resolve(f).startsWith(path.join(os.homedir(), 'Library/Developer/Xcode/UserData/Provisioning Profiles') + path.sep));
+    fs.rmSync(f, { force: true });
+  }
+  assert(path.resolve(privateDir) === path.join(path.resolve(process.env.RUNNER_TEMP || os.tmpdir()), 'elec-apple-ci'));
+  fs.rmSync(privateDir, { recursive: true, force: true });
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const mode = process.argv[2];
+  try {
+    if (mode === 'approval') requireApproval();
+    else if (mode === 'diagnostic') diagnostic();
+    else if (mode === 'signed') { assert.equal(process.platform, 'darwin'); signed(); }
+    else if (mode === 'upload') { assert.equal(process.platform, 'darwin'); upload(); }
+    else if (mode === 'cleanup') cleanup();
+    else throw new Error('Use approval, diagnostic, signed, upload or cleanup');
+  } catch (e) {
+    // Assertions involving secret-derived data may carry actual/expected values: do not dump error objects.
+    console.error(mode === 'signed' || mode === 'upload' ? `Apple signing/upload validation failed after ${events.at(-1)?.operation || 'preflight'}; inspect operations report and signing setup. Raw secret-bearing output withheld.` : e.message);
+    process.exitCode = 1;
+  } finally {
+    if (['diagnostic', 'signed', 'upload'].includes(mode)) save(path.join(output, mode === 'diagnostic' ? 'diagnostic/operations.json' : `signed/${mode}-operations.json`), events);
+  }
+}

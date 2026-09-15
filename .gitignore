@@ -7,3 +7,13 @@ test-results/
 Thumbs.db
 .env
 .env.*
+*.p12
+*.p8
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+*.xcarchive/
+*.pkg

@@ -1,0 +1,30 @@
+name: Safari unsigned diagnostic
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: macos-15
+    timeout-minutes: 25
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install locked build dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Reproduce hash-locked input
+        run: node scripts/apple-input.mjs
+      - name: Inspect converter and perform unsigned conversion/build
+        run: node scripts/apple-ci.mjs diagnostic
+      - name: Publish allowlisted diagnostic evidence (including failure reports)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: safari-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/apple-artifacts/diagnostic/*
+          if-no-files-found: warn
+          retention-days: 7
