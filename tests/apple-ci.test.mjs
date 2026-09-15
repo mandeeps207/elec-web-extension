@@ -1,14 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
 const read = p => fs.readFileSync(p, 'utf8');
+
+test('Converter help accepts validated usage output on 64 and preserves failed probe evidence', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'elec-converter-help-'));
+  const help = '--project-location --app-name --bundle-identifier --macos-only --copy-resources --no-open --no-prompt --swift';
+  for (const status of [0, 64]) {
+    assert.equal(converterHelp(dir, (tool, args) => {
+      assert.equal(tool, 'xcrun');
+      assert.deepEqual(args, ['safari-web-extension-converter', '--help']);
+      return { status, stdout: '', stderr: help };
+    }), help);
+  }
+  assert.throws(() => converterHelp(dir, () => ({ status: 64, stderr: 'Unknown command' })), /lacks/);
+  assert.equal(read(path.join(dir, 'converter-help.txt')), 'Unknown command');
+  assert.equal(JSON.parse(read(path.join(dir, 'converter-help-status.json'))).exitCode, 64);
+  assert.throws(() => converterHelp(dir, () => ({ status: 72, stderr: help })), /help failed/);
+  assert.throws(() => converterHelp(dir, () => ({ status: null, error: { code: 'ENOENT' } })), /help failed/);
+});
 
 test('Apple workflows dispatch only; unsigned has no secrets; upload defaults off behind protected signed job', () => {
   const diagnostic = load(read('.github/workflows/safari-diagnostic.yml'));

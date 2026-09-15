@@ -19,6 +19,21 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const save = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n'); };
 const events = [];
+export function converterHelp(directory, run = spawnSync) {
+  const args = ['safari-web-extension-converter', '--help'];
+  const result = run('xcrun', args, { encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 });
+  const help = (result.stdout || '') + (result.stderr || '');
+  // Help is an unsigned, secret-free probe. Preserve it even on failure.
+  save(path.join(directory, 'converter-help.txt'), help);
+  save(path.join(directory, 'converter-help-status.json'), { exitCode: result.status, signal: result.signal || null, launchError: result.error?.code || null });
+  events.push({ operation: 'Converter help', exitCode: result.status });
+  assert(!result.error && !result.signal && [0, 64].includes(result.status), 'Converter help failed; inspect converter-help.txt and converter-help-status.json');
+  // Some Apple command-line help paths return EX_USAGE (64). The exit code alone
+  // is insufficient: require the actual installed tool to advertise every flag.
+  const flags = ['--project-location', '--app-name', '--bundle-identifier', '--macos-only', '--copy-resources', '--no-open', '--no-prompt', '--swift'];
+  for (const flag of flags) assert(help.includes(flag), `Installed converter lacks ${flag}; inspect converter-help.txt`);
+  return help;
+}
 function command(label, args, { input, allowFailure = false } = {}) {
   const r = spawnSync(args[0], args.slice(1), { input, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 20 * 60 * 1000 });
   // Never emit raw command arguments/stdout/stderr: signing tools can echo credentials/profiles.
@@ -111,10 +126,7 @@ function diagnostic() {
   const version = command('Xcode version', ['xcodebuild', '-version']).trim();
   assert.equal(version, 'Xcode 26.3\nBuild version 17C529', 'Pinned Xcode not installed; do not silently select another version');
   assert.equal(digest(fs.readFileSync('build/generated/safari-input.zip')), INPUT_HASH);
-  const help = command('Converter help', ['xcrun', 'safari-web-extension-converter', '--help']);
-  save(path.join(reportDir, 'converter-help.txt'), help);
-  const flags = ['--project-location', '--app-name', '--bundle-identifier', '--macos-only', '--copy-resources', '--no-open', '--no-prompt', '--swift'];
-  for (const flag of flags) assert(help.includes(flag), `Installed converter lacks ${flag}; stop rather than guessing`);
+  const help = converterHelp(reportDir);
   command('Convert Safari resources', ['xcrun', 'safari-web-extension-converter', path.resolve('build/generated/safari-input'), '--project-location', base, '--app-name', 'UK Electrician Route Checker', '--bundle-identifier', APP, '--macos-only', '--copy-resources', '--no-open', '--no-prompt', '--swift']);
   // Preserve Apple's original generated source even when a suffix/structure check stops Phase 1.
   command('Snapshot converter output', ['tar', '-czf', path.join(reportDir, 'generated-project.tar.gz'), '-C', base, '.']);
