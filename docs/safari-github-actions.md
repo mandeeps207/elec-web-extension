@@ -12,7 +12,7 @@ Apple currently calls its conversion utility a packager and documents its previo
 
 GitHub's macos-15 inventory reviewed for this work: image 20260824.0482.1, macOS 15.7.9, Xcode **26.3 (17C529)** at `/Applications/Xcode_26.3.app`. The workflow sets DEVELOPER_DIR explicitly and verifies the exact version/build. The macos-15 default is a different Xcode. Runner images are mutable; removal of the pinned version fails rather than falling back. Installed Node 22.23.2 supports the existing >=22.19 engine. npm uses the lockfile with lifecycle scripts disabled; no new dependencies were added. Actions are pinned to verified commit SHAs.
 
-One credential requirement beyond app code signing: exporting an App Store installer also needs a **Mac Installer Distribution** identity. The documented P12 contains both that identity and Apple Distribution, each with its private key. Developer ID/development identities are rejected. Do not obtain profiles until the corrected resolved extension ID is confirmed.
+One credential requirement beyond app code signing: exporting an App Store installer also needs a **Mac Installer Distribution** identity. Two separate password-protected P12 secrets provide that identity and Apple Distribution, each with its private key and the same password. Developer ID/development identities are rejected. Do not obtain profiles until the corrected resolved extension ID is confirmed.
 
 ## Two manual workflows
 

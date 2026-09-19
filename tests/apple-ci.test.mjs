@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
@@ -79,9 +79,9 @@ test('Apple workflows dispatch only; unsigned has no secrets; upload defaults of
   const job = signed.jobs.signed;
   assert.equal(job.environment, 'apple-production');
   const upload = job.steps.find(s => s.run?.includes('apple-ci.mjs upload'));
-  assert.equal(upload.if, '${{ inputs.upload_to_app_store == true }}');
+  assert.equal(upload.if, '${{ false && inputs.upload_to_app_store == true }}');
   assert(job.steps.find(s => s.run?.includes('apple-ci.mjs cleanup')).if === 'always()');
-  const secretStep = job.steps.findIndex(s => s.env?.APPLE_CERTIFICATE_P12_BASE64);
+  const secretStep = job.steps.findIndex(s => s.env?.APPLE_DISTRIBUTION_P12_BASE64);
   assert(secretStep > job.steps.findIndex(s => s.run?.includes('diagnostic --approved')));
   for (const step of job.steps.filter(s => s.uses?.startsWith('actions/upload-artifact@'))) {
     assert.equal(step.if, 'success()');
@@ -154,4 +154,20 @@ test('Native Safari settings helper uses the exact corrected extension identifie
  assert.equal(correctNativeIdentifier('let extensionBundleIdentifier = "wrong.Extension"'), 'let extensionBundleIdentifier = "'+EXT+'"');
  assert.throws(()=>correctNativeIdentifier('no identifier'));
  assert.throws(()=>correctNativeIdentifier('let extensionBundleIdentifier = "a"; let extensionBundleIdentifier = "b"'));
+});
+
+test('Separate P12 imports use both exact secrets and distinct temporary files', () => {
+ const decoded=[], imported=[];
+ importSigningIdentities(file=>imported.push(file),(secret,file)=>{decoded.push([secret,file]);return file;});
+ assert.deepEqual(decoded,[['APPLE_DISTRIBUTION_P12_BASE64','app-distribution.p12'],['APPLE_INSTALLER_DISTRIBUTION_P12_BASE64','installer-distribution.p12']]);
+ assert.deepEqual(imported,decoded.map(v=>v[1]));
+ const workflow=load(read('.github/workflows/safari-app-store.yml'));
+ const env=workflow.jobs.signed.steps.find(s=>s.run==='node scripts/apple-ci.mjs signed').env;
+ assert.deepEqual(Object.keys(env).sort(),['APPLE_TEAM_ID','APPLE_DISTRIBUTION_P12_BASE64','APPLE_INSTALLER_DISTRIBUTION_P12_BASE64','APPLE_CERTIFICATE_PASSWORD','APPLE_APP_PROVISION_PROFILE_BASE64','APPLE_EXTENSION_PROVISION_PROFILE_BASE64'].sort());
+});
+test('API key is original PEM, not Base64; invalid secret errors do not echo values', () => {
+ const key=['-----BEGIN PRIVATE KEY-----','YWJjZA==','-----END PRIVATE KEY-----'].join('\n');
+ assert.equal(apiPrivateKey(key),key);
+ assert.throws(()=>apiPrivateKey(Buffer.from(key).toString('base64')),/original multiline P8/);
+ assert.throws(()=>apiPrivateKey(undefined),/original multiline P8/);
 });

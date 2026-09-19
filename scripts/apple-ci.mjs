@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
+import { restrictCapabilities, verifyCapabilities, forbiddenEntitlements, sourceHashes, pngAudit } from './apple-evidence.mjs';
 
 export const TEAM = '3XPCC2X77K';
 export const APP = 'training.elec.qualification.checker';
@@ -117,6 +118,7 @@ export function correctTargetIdentifiers(data) {
       for (const key of Object.keys(c.buildSettings)) if (key.startsWith('PRODUCT_BUNDLE_IDENTIFIER[')) c.buildSettings[key] = bundle;
       c.buildSettings.PRODUCT_BUNDLE_IDENTIFIER = bundle;
       c.buildSettings.DEVELOPMENT_TEAM = TEAM;
+      restrictCapabilities(c.buildSettings);
     }
   }
 }
@@ -146,7 +148,7 @@ export function selectAppScheme(p, candidates) {
   return matches[0].name;
 }
 function topology(p, scheme, configuration = 'Release') {
-  const result = settings(p, scheme, configuration).map(({ target, buildSettings: b }) => ({ target, configuration, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, sandbox: b.ENABLE_APP_SANDBOX, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE, productName: b.FULL_PRODUCT_NAME, version: b.MARKETING_VERSION, buildNumber: b.CURRENT_PROJECT_VERSION }));
+  const result = settings(p, scheme, configuration).map(({ target, buildSettings: b }) => ({ target, configuration, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, sandbox: b.ENABLE_APP_SANDBOX, network: b.ENABLE_OUTGOING_NETWORK_CONNECTIONS, userSelectedFiles: b.ENABLE_USER_SELECTED_FILES, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE, productName: b.FULL_PRODUCT_NAME, version: b.MARKETING_VERSION, buildNumber: b.CURRENT_PROJECT_VERSION }));
   return result.sort((a, b) => a.target.localeCompare(b.target));
 }
 function verifyResources(dir) {
@@ -204,11 +206,18 @@ function diagnostic() {
     if (b.entitlements) {
       const ent = path.resolve(path.dirname(p.project), b.entitlements);
       assert(ent.startsWith(base + path.sep));
-      checkEntitlements(plist(ent), expected);
+      const entitlements = plist(ent);
+      for (const key of forbiddenEntitlements) delete entitlements[key];
+      checkEntitlements(entitlements, expected);
+      writePlist(ent, entitlements);
     } else {
       // Xcode 26's observed template generates entitlements from build settings.
       assert.equal(b.sandbox, 'YES', 'Generated app sandbox must remain enabled');
     }
+    const explicitEntitlements = path.join(path.dirname(info), 'ReviewedSandbox.entitlements');
+    assert(!fs.existsSync(explicitEntitlements), 'Unexpected existing reviewed entitlement file');
+    writePlist(explicitEntitlements, { 'com.apple.security.app-sandbox': true });
+    checkEntitlements(plist(explicitEntitlements), expected);
     for (const id of p.data.objects[target.buildConfigurationList].buildConfigurations) {
       const settings = p.data.objects[id].buildSettings;
       settings.PRODUCT_BUNDLE_IDENTIFIER = expected;
@@ -218,6 +227,7 @@ function diagnostic() {
       settings.CODE_SIGN_STYLE = 'Manual';
       settings.INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = 'NO';
       settings.ENABLE_APP_SANDBOX = 'YES';
+      settings.CODE_SIGN_ENTITLEMENTS = path.relative(path.dirname(p.project), explicitEntitlements);
     }
   }
   writePlist(p.file, p.data);
@@ -227,11 +237,28 @@ function diagnostic() {
   assert(fs.readFileSync(controllers[0], 'utf8').includes(`let extensionBundleIdentifier = "${EXT}"`));
   const corrected = Object.fromEntries(['Debug', 'Release'].map(c => [c, topology(p, scheme, c)]));
   for (const rows of Object.values(corrected)) verifyResolvedIdentifiers(rows);
+  for (const c of ['Debug', 'Release']) for (const row of settings(p, scheme, c)) verifyCapabilities(row.buildSettings);
   save(path.join(reportDir, 'corrected-structure.json'), { project: path.relative(base, p.project), scheme, team: TEAM, containingBundleId: APP, extensionBundleId: EXT, sku: SKU, appleId: APPLE_ID, configurations: corrected });
   safeGeneratedSource();
   verifyResources(base);
-  // Stable reviewed evidence excludes random PBX object IDs and build-number overrides.
-  const nativeHashes = Object.fromEntries(walk(base).filter(f => /\.(swift|m|h|html|js|css|plist|entitlements|png)$/.test(f)).map(f => [path.relative(base, f).split(path.sep).join('/'), digest(fs.readFileSync(f))]));
+  const allEntries = Object.fromEntries(walk(base).map(f => [path.relative(base, f).split(path.sep).join('/'), fs.readFileSync(f)]));
+  const nativeHashes = sourceHashes(allEntries, path.relative(base, p.file).split(path.sep).join('/'), p.data);
+  const iconCatalogs = walk(base).filter(f => f.endsWith('AppIcon.appiconset/Contents.json'));
+  assert.equal(iconCatalogs.length, 1);
+  const catalog = readJson(iconCatalogs[0]);
+  const slots = [];
+  for (const entry of catalog.images) {
+    assert.equal(entry.idiom, 'mac');
+    assert(entry.filename && path.basename(entry.filename) === entry.filename);
+    const [w,h] = entry.size.split('x').map(Number), scale = Number(entry.scale.replace('x',''));
+    const audit = pngAudit(fs.readFileSync(path.join(path.dirname(iconCatalogs[0]), entry.filename)));
+    assert.equal(w,h); assert.equal(audit.width,w*scale); assert.equal(audit.height,h*scale);
+    assert(audit.visiblePixels > 0 && audit.transparentPixels > 0, 'Generated macOS icon must retain visible artwork and transparent padding');
+    slots.push({slot: `${entry.size}@${entry.scale}`, ...audit});
+  }
+  assert.deepEqual(slots.map(s=>s.slot).sort(), [16,32,128,256,512].flatMap(n=>[1,2].map(s=>`${n}x${n}@${s}x`)).sort());
+  assert.deepEqual(slots, readJson('ci/safari-icon-baseline.json').slots, 'Generated icon pixels/padding differ from diagnostic baseline; inspect, do not silently accept or rescale');
+  save(path.join(reportDir,'artwork-audit.json'), {source: 'src/assets/icons/icon-128.png', sourceAudit: pngAudit(fs.readFileSync('src/assets/icons/icon-128.png')), slots, replacementRequired: true, visualApproval: false, note:'Converter-generated upscale is diagnostic evidence only; approved high-resolution or vector source required.'});
   const stableConfigurations = Object.fromEntries(Object.entries(corrected).map(([c, rows]) => [c, rows.map(({ buildNumber, ...row }) => row)]));
   const evidence = { xcode: version, converterHelpHash: digest(help), project: path.relative(base, p.project), scheme, configurations: stableConfigurations, nativeHashes, inputHash: INPUT_HASH, containingBundleId: APP, extensionBundleId: EXT, team: TEAM, sku: SKU, appleId: APPLE_ID };
   const report = { ...evidence, fingerprint: digest(JSON.stringify(evidence)), unsignedBuild: 'pending' };
@@ -242,6 +269,13 @@ function diagnostic() {
   assert(productName?.endsWith('.app') && path.basename(productName) === productName, 'Unexpected app product name');
   const app = path.join(base, 'DerivedData/Build/Products/Release', productName);
   report.products = verifyProduct(app, false);
+  const generatedEntitlements = walk(path.join(base,'DerivedData')).filter(f=>f.endsWith('.xcent'));
+  for (const file of generatedEntitlements) {
+    const entitlements = plist(file);
+    for (const key of forbiddenEntitlements) assert(!Object.hasOwn(entitlements,key), 'Forbidden generated entitlement');
+    assert.equal(entitlements['com.apple.security.app-sandbox'], true);
+  }
+  save(path.join(reportDir,'unsigned-entitlements.json'), { signingDisabled: true, explicitAppAndExtensionSandboxPlistsVerified: true, generatedXcent: generatedEntitlements.map(file=>({file:path.relative(base,file),entitlements:plist(file)})), signedArchiveAndExportChecks: 'Pending signed build; existing strict allowlist remains required' });
   report.resolvedConfigurations = corrected;
   report.unsignedBuild = 'PASS';
   save(path.join(reportDir, 'diagnostic.json'), report);
@@ -291,6 +325,16 @@ function decodeSecret(name, filename) {
   fs.writeFileSync(dest, Buffer.from(process.env[name], 'base64'), { mode: 0o600 });
   return dest;
 }
+export function importSigningIdentities(importFile, decode = decodeSecret) {
+  for (const [name, filename] of [
+    ['APPLE_DISTRIBUTION_P12_BASE64', 'app-distribution.p12'],
+    ['APPLE_INSTALLER_DISTRIBUTION_P12_BASE64', 'installer-distribution.p12']
+  ]) importFile(decode(name, filename));
+}
+export function apiPrivateKey(value) {
+  assert(typeof value === 'string' && /^-----BEGIN PRIVATE KEY-----\r?\n[A-Za-z0-9+/=\r\n]+\r?\n-----END PRIVATE KEY-----\s*$/.test(value), 'APPLE_API_PRIVATE_KEY must contain the original multiline P8 PEM, not Base64');
+  return value.replaceAll('\r\n', '\n');
+}
 function signed() {
   const report = readJson(path.join(output, 'diagnostic/diagnostic.json'));
   requireApproval(report);
@@ -306,22 +350,21 @@ function signed() {
   const oldKeychains = command('Read keychain search list', ['security', 'list-keychains', '-d', 'user']);
   save(path.join(privateDir, 'old-keychains.json'), [...oldKeychains.matchAll(/"([^"]+)"/g)].map(m => m[1]));
   try {
-    const cert = decodeSecret('APPLE_CERTIFICATE_P12_BASE64', 'distribution.p12');
     command('Create temporary keychain', ['security', 'create-keychain', '-p', password, keychain]);
     command('Unlock temporary keychain', ['security', 'unlock-keychain', '-p', password, keychain]);
     command('Set keychain timeout', ['security', 'set-keychain-settings', '-lut', '3600', keychain]);
-    command('Import distribution identities', ['security', 'import', cert, '-k', keychain, '-P', process.env.APPLE_CERTIFICATE_PASSWORD, '-T', '/usr/bin/codesign', '-T', '/usr/bin/productbuild', '-T', '/usr/bin/productsign']);
+    importSigningIdentities(cert => command('Import distribution identity', ['security', 'import', cert, '-k', keychain, '-P', process.env.APPLE_CERTIFICATE_PASSWORD, '-T', '/usr/bin/codesign', '-T', '/usr/bin/productbuild', '-T', '/usr/bin/productsign']));
     command('Set key partition access', ['security', 'set-key-partition-list', '-S', 'apple-tool:,apple:,codesign:', '-k', password, keychain]);
     command('Select temporary keychain', ['security', 'list-keychains', '-d', 'user', '-s', keychain, ...readJson(path.join(privateDir, 'old-keychains.json'))]);
     const ids = command('Inspect distribution identities', ['security', 'find-identity', '-v', keychain]);
     const identities = [...ids.matchAll(/([A-F0-9]{40}) "([^"]+)"/g)].map(m => ({ hash: m[1], name: m[2] }));
     const appIds = identities.filter(v => v.name.startsWith('Apple Distribution:') && v.name.endsWith(`(${team})`));
     const installerIds = identities.filter(v => v.name.startsWith('3rd Party Mac Developer Installer:') && v.name.endsWith(`(${team})`));
-    assert.equal(appIds.length, 1, 'P12 must contain exactly one Apple Distribution private-key identity for this team');
-    assert.equal(installerIds.length, 1, 'P12 also needs one Mac Installer Distribution private-key identity for App Store .pkg');
+    assert.equal(appIds.length, 1, 'Temporary keychain must contain exactly one Apple Distribution private-key identity for this team');
+    assert.equal(installerIds.length, 1, 'Temporary keychain must contain one Mac Installer Distribution private-key identity for this team');
     const appIdentity = appIds[0], installer = installerIds[0];
     const profiles = {};
-    for (const [target, bundle, secret] of [[p.app, APP, 'APPLE_APP_PROFILE_BASE64'], [p.ext, EXT, 'APPLE_EXTENSION_PROFILE_BASE64']]) {
+    for (const [target, bundle, secret] of [[p.app, APP, 'APPLE_APP_PROVISION_PROFILE_BASE64'], [p.ext, EXT, 'APPLE_EXTENSION_PROVISION_PROFILE_BASE64']]) {
       const encoded = decodeSecret(secret, `${target.id}.provisionprofile`);
       const decoded = path.join(privateDir, `${target.id}.plist`);
       command('Decode provisioning profile privately', ['security', 'cms', '-D', '-i', encoded, '-o', decoded]);
@@ -342,7 +385,11 @@ function signed() {
     }
     writePlist(p.file, p.data);
     const after = topology(p, state.scheme);
-    assert.deepEqual(after.map(v => v.bundle).sort(), [APP, EXT].sort());
+    verifyResolvedIdentifiers(after);
+    for (const row of after) {
+      const info = plist(path.resolve(path.dirname(p.project), row.plist));
+      assert.equal(info.ITSAppUsesNonExemptEncryption, false, 'Encryption declaration must be Boolean false before archive');
+    }
     const archive = path.join(base, 'Safari.xcarchive');
     command('Archive signed macOS application', [...xcodeArgs(p, state.scheme), '-archivePath', archive, '-derivedDataPath', path.join(base, 'SignedDerivedData'), 'archive']);
     const apps = fs.readdirSync(path.join(archive, 'Products/Applications')).filter(n => n.endsWith('.app'));
@@ -378,20 +425,20 @@ function signed() {
 function upload() {
   assert.equal(process.env.UPLOAD_AUTHORIZED, 'true', 'Explicit upload authorization required');
   requireApproval(readJson(path.join(output, 'diagnostic/diagnostic.json')));
-  for (const key of ['APPSTORE_API_KEY_ID', 'APPSTORE_API_ISSUER_ID']) assert(process.env[key], `Missing ${key}`);
-  assert(/^[A-Z0-9]+$/.test(process.env.APPSTORE_API_KEY_ID));
-  assert(/^[a-fA-F0-9-]{36}$/.test(process.env.APPSTORE_API_ISSUER_ID));
+  for (const key of ['APPLE_API_KEY_ID', 'APPLE_API_ISSUER_ID']) assert(process.env[key], `Missing ${key}`);
+  assert(/^[A-Z0-9]+$/.test(process.env.APPLE_API_KEY_ID));
+  assert(/^[a-fA-F0-9-]{36}$/.test(process.env.APPLE_API_ISSUER_ID));
   const pkg = path.join(output, 'signed/elec-training-qualification-checker-macos-v1.0.0.pkg');
   assert.equal(fs.readFileSync(path.join(output, 'signed/sha256.txt'), 'utf8').split(' ')[0], digest(fs.readFileSync(pkg)));
   fs.mkdirSync(privateDir, { recursive: true, mode: 0o700 });
   try {
-    const key = decodeSecret('APPSTORE_API_PRIVATE_KEY_BASE64', `AuthKey_${process.env.APPSTORE_API_KEY_ID}.p8`);
-    assert(fs.readFileSync(key, 'utf8').includes('-----BEGIN PRIVATE KEY-----'), 'Expected an App Store Connect P8 key');
+    const key = path.join(privateDir, `AuthKey_${process.env.APPLE_API_KEY_ID}.p8`);
+    fs.writeFileSync(key, apiPrivateKey(process.env.APPLE_API_PRIVATE_KEY), { mode: 0o600 });
     const help = command('Inspect upload tool', ['xcrun', 'altool', '--help'], { allowFailure: true });
     for (const flag of ['--validate-app', '--upload-app', '--apiKey', '--apiIssuer', 'API_PRIVATE_KEYS_DIR']) assert(help.includes(flag), `Installed altool lacks ${flag}; do not use guessed upload arguments`);
     // Apple's documented altool key search directory override; never place P8 inside the workspace.
     process.env.API_PRIVATE_KEYS_DIR = privateDir;
-    const args = ['-f', pkg, '-t', 'macos', '--apiKey', process.env.APPSTORE_API_KEY_ID, '--apiIssuer', process.env.APPSTORE_API_ISSUER_ID, '--output-format', 'json'];
+    const args = ['-f', pkg, '-t', 'macos', '--apiKey', process.env.APPLE_API_KEY_ID, '--apiIssuer', process.env.APPLE_API_ISSUER_ID, '--output-format', 'json'];
     command('Validate package with Apple', ['xcrun', 'altool', '--validate-app', ...args]);
     command('Upload package to Apple', ['xcrun', 'altool', '--upload-app', ...args]);
     save(path.join(output, 'signed/apple-upload.json'), { uploadCommandSucceeded: true, submittedForReview: false, note: 'Check App Store Connect for processing outcome; no raw Apple response published.' });

@@ -18,7 +18,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Reproduce hash-locked input
         run: node scripts/apple-input.mjs
-      - name: Inspect converter and perform unsigned conversion/build
+      - name: Audit corrected sandbox settings, complete fingerprint and artwork; build unsigned
         run: node scripts/apple-ci.mjs diagnostic
       - name: Publish allowlisted diagnostic evidence (including failure reports)
         if: always()
