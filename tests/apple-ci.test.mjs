@@ -83,7 +83,7 @@ test('Apple workflows dispatch only; unsigned has no secrets; upload defaults of
   assert(install > job.steps.findIndex(s => s.uses?.startsWith('actions/checkout@')));
   assert(approval > install, 'Approval command imports locked artwork dependencies, so npm ci must run first');
   const upload = job.steps.find(s => s.run?.includes('apple-ci.mjs upload'));
-  assert.equal(upload.if, '${{ false && inputs.upload_to_app_store == true }}');
+  assert.equal(upload.if, '${{ inputs.upload_to_app_store == true }}');
   assert(job.steps.find(s => s.run?.includes('apple-ci.mjs cleanup')).if === 'always()');
   const secretStep = job.steps.findIndex(s => s.env?.APPLE_DISTRIBUTION_P12_BASE64);
   assert(secretStep > job.steps.findIndex(s => s.run?.includes('diagnostic --approved')));

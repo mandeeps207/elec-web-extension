@@ -50,7 +50,7 @@ jobs:
           APPLE_EXTENSION_PROVISION_PROFILE_BASE64: ${{ secrets.APPLE_EXTENSION_PROVISION_PROFILE_BASE64 }}
         run: node scripts/apple-ci.mjs signed
       - name: Optional explicit Apple upload
-        if: ${{ false && inputs.upload_to_app_store == true }}
+        if: ${{ inputs.upload_to_app_store == true }}
         env:
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
