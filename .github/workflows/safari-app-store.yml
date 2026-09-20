@@ -60,13 +60,13 @@ jobs:
       - name: Always clean temporary credentials
         if: always()
         run: node scripts/apple-ci.mjs cleanup
-      - name: Publish validated outputs only
-        if: success()
+      - name: Publish allowlisted validation evidence and validated outputs
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: safari-app-store-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             build/apple-artifacts/diagnostic/*
             build/apple-artifacts/signed/*
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 3

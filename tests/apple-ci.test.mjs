@@ -88,7 +88,8 @@ test('Apple workflows dispatch only; unsigned has no secrets; upload defaults of
   const secretStep = job.steps.findIndex(s => s.env?.APPLE_DISTRIBUTION_P12_BASE64);
   assert(secretStep > job.steps.findIndex(s => s.run?.includes('diagnostic --approved')));
   for (const step of job.steps.filter(s => s.uses?.startsWith('actions/upload-artifact@'))) {
-    assert.equal(step.if, 'success()');
+    assert.equal(step.if, 'always()');
+    assert.equal(step.with['if-no-files-found'], 'warn');
     assert(step.with['retention-days'] <= 3);
     assert(step.with.path.split('\n').filter(Boolean).every(p => /^build\/apple-artifacts\/(diagnostic|signed)\/\*$/.test(p)));
   }
@@ -106,6 +107,7 @@ test('Apple identifiers, build numbers, encryption and signature assertions stay
   assert(src.includes("'delete-keychain'"));
   assert(src.includes('Resolved Bundle ID differs'));
   assert(src.includes('help.includes(flag)'));
+  assert(src.includes("failedOperation = label"));
 });
 test('Unreviewed conversion blocks signing; no fabricated approval', () => {
   assert.throws(() => requireApproval(undefined, { approved: false }), /Phase 1 has not been reviewed/);

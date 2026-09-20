@@ -24,6 +24,7 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const save = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n'); };
 const events = [];
+let failedOperation = null;
 export function converterHelp(directory, run = spawnSync) {
   const args = ['safari-web-extension-converter', '--help'];
   const result = run('xcrun', args, { encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 });
@@ -43,7 +44,10 @@ export function command(label, args, { input, allowFailure = false, stdoutOnly =
   const r = run(args[0], args.slice(1), { input, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 20 * 60 * 1000 });
   // Never emit raw command arguments/stdout/stderr: signing tools can echo credentials/profiles.
   events.push({ operation: label, exitCode: r.status });
-  if (r.status !== 0 && !allowFailure) throw new Error(`${label} failed (exit ${r.status}); raw output withheld to protect signing material`);
+  if (r.status !== 0 && !allowFailure) {
+    failedOperation = label;
+    throw new Error(`${label} failed (exit ${r.status}); raw output withheld to protect signing material`);
+  }
   return stdoutOnly ? (r.stdout || '') : (r.stdout || '') + (r.stderr || '');
 }
 export function commandJson(label, args, options = {}) {
@@ -474,7 +478,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     else throw new Error('Use approval, diagnostic, signed, upload or cleanup');
   } catch (e) {
     // Assertions involving secret-derived data may carry actual/expected values: do not dump error objects.
-    console.error(mode === 'signed' || mode === 'upload' ? `Apple signing/upload validation failed after ${events.at(-1)?.operation || 'preflight'}; inspect operations report and signing setup. Raw secret-bearing output withheld.` : e.message);
+    console.error(mode === 'signed' || mode === 'upload' ? `Apple signing/upload validation failed during ${failedOperation || 'preflight validation'}; inspect operations report and signing setup. Raw secret-bearing output withheld.` : e.message);
     process.exitCode = 1;
   } finally {
     if (['diagnostic', 'signed', 'upload'].includes(mode)) save(path.join(output, mode === 'diagnostic' ? 'diagnostic/operations.json' : `signed/${mode}-operations.json`), events);
