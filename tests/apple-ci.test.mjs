@@ -127,6 +127,8 @@ test('Distribution profile rejects wrong bundle/team/certificate, wildcard, expi
   const identity = createHash('sha1').update(cert).digest('hex').toUpperCase();
   const p = { TeamIdentifier: [team], Platform: ['OSX'], ExpirationDate: '2099-01-01T00:00:00Z', UUID: '11111111-1111-1111-1111-111111111111', DeveloperCertificates: [cert.toString('base64')], Entitlements: { 'com.apple.application-identifier': team + '.' + APP, 'com.apple.developer.team-identifier': team, 'beta-reports-active': true } };
   checkProfile(p, APP, team, identity);
+  const withoutBetaReports = structuredClone(p); delete withoutBetaReports.Entitlements['beta-reports-active'];
+  checkProfile(withoutBetaReports, APP, team, identity);
   for (const patch of [{ TeamIdentifier: ['OTHER'] }, { ExpirationDate: '2000-01-01' }, { ProvisionedDevices: ['device'] }, { ProvisionsAllDevices: true }, { DeveloperCertificates: [] }, { Platform: ['iOS'] }]) assert.throws(() => checkProfile({ ...p, ...patch }, APP, team, identity));
   for (const patch of [{ 'com.apple.application-identifier': team + '.*' }, { 'get-task-allow': true }, { 'beta-reports-active': false }]) assert.throws(() => checkProfile({ ...p, Entitlements: { ...p.Entitlements, ...patch } }, APP, team, identity));
 });

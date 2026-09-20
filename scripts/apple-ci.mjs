@@ -92,7 +92,9 @@ export function checkProfile(p, bundle, team, identityHash) {
   assert.equal(e['com.apple.application-identifier'] || e['application-identifier'], `${team}.${bundle}`, 'Profile Bundle ID mismatch');
   assert(e['get-task-allow'] !== true && e['com.apple.security.get-task-allow'] !== true, 'Development profile rejected');
   assert.equal(e['com.apple.developer.team-identifier'], team);
-  assert.equal(e['beta-reports-active'], true, 'Expected Mac App Store distribution profile');
+  // Current macOS App Store profiles may omit this TestFlight-oriented key.
+  // If Apple includes it, only the distribution value is acceptable.
+  assert(e['beta-reports-active'] === undefined || e['beta-reports-active'] === true, 'Invalid beta-reports-active value');
   assert(p.DeveloperCertificates?.some(b64 => createHash('sha1').update(Buffer.from(b64, 'base64')).digest('hex').toUpperCase() === identityHash), 'Profile does not contain imported app distribution certificate');
   assert(/^[A-Fa-f0-9-]{36}$/.test(p.UUID), 'Invalid profile UUID');
 }

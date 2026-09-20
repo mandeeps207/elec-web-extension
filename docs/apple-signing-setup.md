@@ -47,6 +47,8 @@ Repeat Base64 encoding for the second P12 and both profiles. For APPLE_API_PRIVA
 
 Credentials appear only in the signed step, after reconversion/fingerprint checks. The script creates a random-password temporary keychain, imports both identities and validates their type/team. Decoded profiles stay in the runner temp folder; each is checked for exact ID/team, platform, expiry, distribution characteristics and matching certificate. Only validated profiles are installed in Xcode's profile directory, with a cleanup ledger; existing files are not overwritten.
 
+Modern macOS App Store profiles may omit the TestFlight-oriented `beta-reports-active` entitlement. Absence is accepted; an explicit false value is rejected. The profile must still be macOS-only, contain the exact application identifier and team, include the imported Apple Distribution certificate, be unexpired, disable development debugging, and contain no device list or direct-distribution flag.
+
 Each target receives its own profile UUID, exact Bundle ID and manual signing settings. The archive and exported payload must pass signature, embedded-extension, version/build, resource, encryption and entitlement checks. No automatic profile registration, signing updates or fallback identities are allowed. A `finally` block and an Actions `always()` step remove temporary keychains/profiles/P12/P8 and restore the keychain search list. GitHub also destroys the runner VM after the job.
 
 See [design and official sources](safari-github-actions.md) and [upload instructions](app-store-upload.md). These setup steps are documented, not performed.
