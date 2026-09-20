@@ -1,6 +1,9 @@
 {
-  "approved": false,
-  "runUrl": null,
-  "reviewedBy": null,
-  "fingerprint": null
+  "approved": true,
+  "runUrl": "https://github.com/mandeeps207/elec-web-extension/actions/runs/35527906628",
+  "reviewedBy": "Mandeep Singh",
+  "fingerprint": "d67c275b4b41e2f7108c3c483ab8a6299367a563611daacf766d190f05cd51e8",
+  "authorizedOn": "2026-09-19",
+  "authorizationScope": "First signed CI test: signing, export and artifact validation only; no App Store Connect upload",
+  "corroboratingRunUrl": "https://github.com/mandeeps207/elec-web-extension/actions/runs/35526187935"
 }
