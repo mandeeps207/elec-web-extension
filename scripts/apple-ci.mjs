@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
+import { installArtwork } from './apple-artwork.mjs';
 import { restrictCapabilities, verifyCapabilities, forbiddenEntitlements, sourceHashes, pngAudit } from './apple-evidence.mjs';
 
 export const TEAM = '3XPCC2X77K';
@@ -241,6 +242,9 @@ function diagnostic() {
   save(path.join(reportDir, 'corrected-structure.json'), { project: path.relative(base, p.project), scheme, team: TEAM, containingBundleId: APP, extensionBundleId: EXT, sku: SKU, appleId: APPLE_ID, configurations: corrected });
   safeGeneratedSource();
   verifyResources(base);
+  const nativeCatalogs = walk(base).filter(f => f.endsWith('AppIcon.appiconset/Contents.json'));
+  assert.equal(nativeCatalogs.length, 1);
+  const artworkAudit = installArtwork(nativeCatalogs[0]);
   const allEntries = Object.fromEntries(walk(base).map(f => [path.relative(base, f).split(path.sep).join('/'), fs.readFileSync(f)]));
   const nativeHashes = sourceHashes(allEntries, path.relative(base, p.file).split(path.sep).join('/'), p.data);
   const iconCatalogs = walk(base).filter(f => f.endsWith('AppIcon.appiconset/Contents.json'));
@@ -253,12 +257,12 @@ function diagnostic() {
     const [w,h] = entry.size.split('x').map(Number), scale = Number(entry.scale.replace('x',''));
     const audit = pngAudit(fs.readFileSync(path.join(path.dirname(iconCatalogs[0]), entry.filename)));
     assert.equal(w,h); assert.equal(audit.width,w*scale); assert.equal(audit.height,h*scale);
-    assert(audit.visiblePixels > 0 && audit.transparentPixels > 0, 'Generated macOS icon must retain visible artwork and transparent padding');
+    assert(audit.visiblePixels === audit.width * audit.height && audit.transparentPixels === 0, 'Approved opaque full-canvas artwork required');
     slots.push({slot: `${entry.size}@${entry.scale}`, ...audit});
   }
   assert.deepEqual(slots.map(s=>s.slot).sort(), [16,32,128,256,512].flatMap(n=>[1,2].map(s=>`${n}x${n}@${s}x`)).sort());
   assert.deepEqual(slots, readJson('ci/safari-icon-baseline.json').slots, 'Generated icon pixels/padding differ from diagnostic baseline; inspect, do not silently accept or rescale');
-  save(path.join(reportDir,'artwork-audit.json'), {source: 'src/assets/icons/icon-128.png', sourceAudit: pngAudit(fs.readFileSync('src/assets/icons/icon-128.png')), slots, replacementRequired: true, visualApproval: false, note:'Converter-generated upscale is diagnostic evidence only; approved high-resolution or vector source required.'});
+  save(path.join(reportDir,'artwork-audit.json'), artworkAudit);
   const stableConfigurations = Object.fromEntries(Object.entries(corrected).map(([c, rows]) => [c, rows.map(({ buildNumber, ...row }) => row)]));
   const evidence = { xcode: version, converterHelpHash: digest(help), project: path.relative(base, p.project), scheme, configurations: stableConfigurations, nativeHashes, inputHash: INPUT_HASH, containingBundleId: APP, extensionBundleId: EXT, team: TEAM, sku: SKU, appleId: APPLE_ID };
   const report = { ...evidence, fingerprint: digest(JSON.stringify(evidence)), unsignedBuild: 'pending' };

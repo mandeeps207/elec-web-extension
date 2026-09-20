@@ -37,8 +37,8 @@ test('Approved icon dimensions, alpha padding and deterministic pixel audit',()=
   assert.throws(()=>pngAudit(Buffer.alloc(32)));
 });
 
-test('Mac artwork regression baseline contains all required slots with square pixels and transparency',()=>{
+test('Mac artwork regression baseline contains all required slots with square opaque pixels',()=>{
  const baseline=JSON.parse(fs.readFileSync('ci/safari-icon-baseline.json','utf8'));
  assert.deepEqual(baseline.slots.map(s=>s.slot).sort(),[16,32,128,256,512].flatMap(n=>[1,2].map(s=>n+'x'+n+'@'+s+'x')).sort());
- for(const slot of baseline.slots){assert.equal(slot.width,slot.height);assert.equal(slot.aspectRatio,1);assert(slot.visiblePixels>0&&slot.transparentPixels>0);assert(/^[a-f0-9]{64}$/.test(slot.sha256));}
+ for(const slot of baseline.slots){assert.equal(slot.width,slot.height);assert.equal(slot.aspectRatio,1);assert(slot.visiblePixels===slot.width*slot.height&&slot.transparentPixels===0);assert(/^[a-f0-9]{64}$/.test(slot.sha256));}
 });

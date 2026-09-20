@@ -61,7 +61,7 @@ export function sourceHashes(entries, projectFile, project) {
   }));
 }
 // Strict PNG audit of converter artwork, not an image editor or visual approval.
-export function pngAudit(bytes) {
+export function pngAudit(bytes, decoded) {
   assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
   const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20), type = bytes[25];
   assert.equal(bytes[24], 8); assert([2, 6].includes(type), 'Unsupported PNG encoding: inspect artwork'); assert.equal(bytes[28], 0);
@@ -73,6 +73,7 @@ export function pngAudit(bytes) {
     const filter=raw[y*(stride+1)], row=Buffer.from(raw.subarray(y*(stride+1)+1,(y+1)*(stride+1))); assert(filter<=4);
     for(let x=0;x<stride;x++){const a=x>=channels?row[x-channels]:0,b=previous[x],c=x>=channels?previous[x-channels]:0;const p=a+b-c;const pa=Math.abs(p-a),pb=Math.abs(p-b),pc=Math.abs(p-c);row[x]=(row[x]+[0,a,b,Math.floor((a+b)/2),pa<=pb&&pa<=pc?a:pb<=pc?b:c][filter])&255;}
     for(let x=0;x<width;x++){const alpha=channels===4?row[x*4+3]:255;if(alpha===0)transparent++;else {opaque++;if(x===0||y===0||x===width-1||y===height-1)edgeOpaque++;}}
+    if (decoded) decoded(row, y, channels);
     previous=row;
   }
   return {width,height,aspectRatio:width/height,hasAlpha:channels===4,transparentPixels:transparent,visiblePixels:opaque,edgeVisiblePixels:edgeOpaque,sha256:hash(bytes)};

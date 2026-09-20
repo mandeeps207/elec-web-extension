@@ -1,115 +1,115 @@
 {
-  "provenance": "Diagnostic 35003030362; converter-generated upscale from approved 128px icon. Regression baseline only, not artwork approval.",
+  "provenance": "Full wordmark composition explicitly selected by client via user; deterministic area downsampling from supplied 1254px RGB master. Final generated macOS visual review pending.",
   "slots": [
     {
       "slot": "16x16@1x",
       "width": 16,
       "height": 16,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 4,
-      "visiblePixels": 252,
-      "edgeVisiblePixels": 56,
-      "sha256": "ddb8faeff6377c324005bde3d8683555f20e86527329b36cac38964f05ab4c65"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 256,
+      "edgeVisiblePixels": 60,
+      "sha256": "6a541af61c012a660a54bffbf3d377e0deb61b9e62aa4597f71dd6de75852299"
     },
     {
       "slot": "16x16@2x",
       "width": 32,
       "height": 32,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 36,
-      "visiblePixels": 988,
-      "edgeVisiblePixels": 96,
-      "sha256": "d947d2d4447a88cd3468a2b4d7895951ffabfbf2a8ac137be33dd0336dcd08a7"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1024,
+      "edgeVisiblePixels": 124,
+      "sha256": "4e21116fe38d138c73428ca7c928c9ddb7cf66e58f8da473a1e443e2bee0881e"
     },
     {
       "slot": "32x32@1x",
       "width": 32,
       "height": 32,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 36,
-      "visiblePixels": 988,
-      "edgeVisiblePixels": 96,
-      "sha256": "d947d2d4447a88cd3468a2b4d7895951ffabfbf2a8ac137be33dd0336dcd08a7"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1024,
+      "edgeVisiblePixels": 124,
+      "sha256": "4e21116fe38d138c73428ca7c928c9ddb7cf66e58f8da473a1e443e2bee0881e"
     },
     {
       "slot": "32x32@2x",
       "width": 64,
       "height": 64,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 920,
-      "visiblePixels": 3176,
-      "edgeVisiblePixels": 0,
-      "sha256": "e40c45d75c488cb214f0cc5e1f4d109ffa79d2753eb172424b05e0b255fd7d2f"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 4096,
+      "edgeVisiblePixels": 252,
+      "sha256": "5513dece901ccb763c3c1d13eaa30fb2ce1959f08e00bda0f83087a9c4ba4137"
     },
     {
       "slot": "128x128@1x",
       "width": 128,
       "height": 128,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 4515,
-      "visiblePixels": 11869,
-      "edgeVisiblePixels": 0,
-      "sha256": "d05ad12e6c5510d31dbdc8c812249075740143e1df688732606dba15d01135bf"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 16384,
+      "edgeVisiblePixels": 508,
+      "sha256": "5847e9b5bdccd3b97978ea4ab75164e8fa38fa535ecff31c94dc6ab736c663a6"
     },
     {
       "slot": "128x128@2x",
       "width": 256,
       "height": 256,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 19637,
-      "visiblePixels": 45899,
-      "edgeVisiblePixels": 0,
-      "sha256": "1c124b568b09230d770bc37c861829c4dbb9f8cba784de82e02bd21fc9a4cb2f"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 65536,
+      "edgeVisiblePixels": 1020,
+      "sha256": "65863652a6ac98ab388d76d33e81121652110c4e1502ee7863c1b5408bf61133"
     },
     {
       "slot": "256x256@1x",
       "width": 256,
       "height": 256,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 19637,
-      "visiblePixels": 45899,
-      "edgeVisiblePixels": 0,
-      "sha256": "1c124b568b09230d770bc37c861829c4dbb9f8cba784de82e02bd21fc9a4cb2f"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 65536,
+      "edgeVisiblePixels": 1020,
+      "sha256": "65863652a6ac98ab388d76d33e81121652110c4e1502ee7863c1b5408bf61133"
     },
     {
       "slot": "256x256@2x",
       "width": 512,
       "height": 512,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 81814,
-      "visiblePixels": 180330,
-      "edgeVisiblePixels": 0,
-      "sha256": "a5235b0bf9c2c1a4adb8545b80e32f677d098dfbd0ab4607ef9fbf4c75b9da1c"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 262144,
+      "edgeVisiblePixels": 2044,
+      "sha256": "819cb50cf0efc3e392f9118f3c941ceded756a4d08f55020cb239879cda77a89"
     },
     {
       "slot": "512x512@1x",
       "width": 512,
       "height": 512,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 81814,
-      "visiblePixels": 180330,
-      "edgeVisiblePixels": 0,
-      "sha256": "a5235b0bf9c2c1a4adb8545b80e32f677d098dfbd0ab4607ef9fbf4c75b9da1c"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 262144,
+      "edgeVisiblePixels": 2044,
+      "sha256": "819cb50cf0efc3e392f9118f3c941ceded756a4d08f55020cb239879cda77a89"
     },
     {
       "slot": "512x512@2x",
       "width": 1024,
       "height": 1024,
       "aspectRatio": 1,
-      "hasAlpha": true,
-      "transparentPixels": 327286,
-      "visiblePixels": 721290,
-      "edgeVisiblePixels": 0,
-      "sha256": "fdaa8c876fb36fd66740d3286c45133a762cc2229c56371d503ce474c4aad637"
+      "hasAlpha": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1048576,
+      "edgeVisiblePixels": 4092,
+      "sha256": "229f254b964c77001b3b0a5c86ecf216ad6063f5c1fff72a55519015510bf418"
     }
   ]
 }
