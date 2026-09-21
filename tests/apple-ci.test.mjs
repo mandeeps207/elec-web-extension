@@ -94,6 +94,17 @@ test('Apple workflows dispatch only; unsigned has no secrets; upload defaults of
     assert(step.with.path.split('\n').filter(Boolean).every(p => /^build\/apple-artifacts\/(diagnostic|signed)\/\*$/.test(p)));
   }
 });
+test('App Store status workflow is read-only, manual and publishes sanitized evidence', () => {
+  const workflow = load(read('.github/workflows/safari-app-store-status.yml'));
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
+  assert.deepEqual(workflow.permissions, {contents:'read'});
+  assert.equal(workflow.jobs.status.environment, 'apple-production');
+  const source=read('scripts/apple-status.mjs');
+  assert(source.includes('/v1/builds?') && source.includes('/v1/buildUploads?'));
+  assert(!/upload-app|submit|POST|PATCH|DELETE/.test(source));
+  assert(!source.includes('console.log(body)') && !source.includes('console.log(authorization)'));
+  for(const step of workflow.jobs.status.steps.filter(s=>s.uses)) assert(/@[a-f0-9]{40}$/.test(step.uses));
+});
 test('Apple identifiers, build numbers, encryption and signature assertions stay explicit', () => {
   assert.equal(APP, 'training.elec.qualification.checker');
   assert.equal(EXT, APP + '.extension');
