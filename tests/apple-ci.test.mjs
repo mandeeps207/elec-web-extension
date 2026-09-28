@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey, safeAppleResponse, appleJsonEvidence } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, APP_CATEGORY, applyStoreCategory, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey, safeAppleResponse, appleJsonEvidence } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
@@ -148,6 +148,14 @@ test('Apple identifiers, build numbers, encryption and signature assertions stay
   assert(src.includes('Resolved Bundle ID differs'));
   assert(src.includes('help.includes(flag)'));
   assert(src.includes("failedOperation = label"));
+});
+test('Mac App Store category is Education on the containing app only', () => {
+  assert.equal(APP_CATEGORY, 'public.app-category.education');
+  assert.deepEqual(applyStoreCategory({ CFBundleIdentifier: APP }, true), { CFBundleIdentifier: APP, LSApplicationCategoryType: APP_CATEGORY });
+  assert.deepEqual(applyStoreCategory({ CFBundleIdentifier: EXT, LSApplicationCategoryType: 'wrong' }, false), { CFBundleIdentifier: EXT });
+  const source = read('scripts/apple-ci.mjs');
+  assert(source.includes("assert.equal(info.LSApplicationCategoryType, APP_CATEGORY"));
+  assert(source.includes("Embedded extension must not declare an application category"));
 });
 test('Unreviewed conversion blocks signing; no fabricated approval', () => {
   assert.throws(() => requireApproval(undefined, { approved: false }), /Phase 1 has not been reviewed/);

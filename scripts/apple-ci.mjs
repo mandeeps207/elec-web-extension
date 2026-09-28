@@ -15,6 +15,7 @@ export const EXT = APP + '.extension';
 export const SKU = 'ELEC-QUAL-CHECKER-MAC-002';
 export const APPLE_ID = '6812432163';
 export const VERSION = '1.0.0';
+export const APP_CATEGORY = 'public.app-category.education';
 const INPUT_HASH = '4d8b5877385e29a3aa3136b9e9d8f7812d981be7811ca3704bba308efcbdcb88';
 const base = path.resolve('build/generated/apple');
 const output = path.resolve('build/apple-artifacts');
@@ -115,6 +116,11 @@ export function checkEntitlements(e, bundle, team, signed = false) {
   assert.equal(e['com.apple.security.app-sandbox'], true, 'App sandbox is required');
   for (const k of ['com.apple.application-identifier', 'application-identifier']) if (k in e) assert.equal(e[k], `${team}.${bundle}`);
   if ('com.apple.developer.team-identifier' in e) assert.equal(e['com.apple.developer.team-identifier'], team);
+}
+export function applyStoreCategory(info, containingApp) {
+  if (containingApp) info.LSApplicationCategoryType = APP_CATEGORY;
+  else delete info.LSApplicationCategoryType;
+  return info;
 }
 export function checkProfile(p, bundle, team, identityHash) {
   assert.deepEqual(p.TeamIdentifier, [team]);
@@ -243,6 +249,7 @@ function diagnostic() {
     value.ITSAppUsesNonExemptEncryption = false;
     value.CFBundleShortVersionString = VERSION;
     value.CFBundleVersion = '$(CURRENT_PROJECT_VERSION)';
+    applyStoreCategory(value, target === p.app);
     writePlist(info, value);
     assert.equal(plist(info).ITSAppUsesNonExemptEncryption, false);
     if (b.entitlements) {
@@ -342,6 +349,8 @@ function verifyProduct(app, signed, team) {
     assert.equal(info.CFBundleShortVersionString, VERSION);
     assert.equal(info.CFBundleVersion, buildNumber(process.env.BUILD_OVERRIDE || '', process.env.GITHUB_RUN_NUMBER || '1', process.env.GITHUB_RUN_ATTEMPT || '1'));
     assert.equal(info.ITSAppUsesNonExemptEncryption, false);
+    if (product === app) assert.equal(info.LSApplicationCategoryType, APP_CATEGORY, 'Containing app must declare the reviewed Mac App Store category');
+    else assert(!Object.hasOwn(info, 'LSApplicationCategoryType'), 'Embedded extension must not declare an application category');
     if (product === ext) assert.equal(info.NSExtension?.NSExtensionPointIdentifier, 'com.apple.Safari.web-extension');
     if (signed) {
       command('Verify code signature', ['codesign', '--verify', '--deep', '--strict', product]);
