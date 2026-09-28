@@ -146,6 +146,14 @@ test('Unreviewed conversion blocks signing; no fabricated approval', () => {
   requireApproval({ fingerprint: approved.fingerprint }, approved);
   assert.throws(() => requireApproval({ fingerprint: 'b'.repeat(64) }, approved), /differs from reviewed/);
 });
+test('Reviewed Xcode 27 approval is bound to the successful diagnostic and limited redelivery scope', () => {
+  const approval = JSON.parse(read('ci/safari-diagnostic-approval.json'));
+  assert.equal(approval.runUrl, 'https://github.com/mandeeps207/elec-web-extension/actions/runs/36493242566');
+  assert.equal(approval.fingerprint, '451da4b15b1f02adb04e25fdcf7a7b23c4061d058c9832887925568c26fd4545');
+  assert.equal(approval.toolchain, 'Xcode 27.0 (27A266a)');
+  assert(approval.authorizationScope.includes('build 2 redelivery'));
+  assert(approval.authorizationScope.includes('no App Review submission or release'));
+});
 test('Entitlements reject network, storage, groups and debug capability', () => {
   const sandbox = { 'com.apple.security.app-sandbox': true };
   checkEntitlements(sandbox, APP);
