@@ -165,10 +165,12 @@ function settings(p, scheme, configuration = 'Release') {
 export function selectAppScheme(p, candidates) {
   const objects = p.data.objects;
   assert(p.app.dependencies.some(id => objects[id]?.target === p.ext.id), 'Containing app must depend on extension');
-  assert(p.app.buildPhases.some(id => {
+  const embedPhases = p.app.buildPhases.filter(id => {
     const phase = objects[id];
-    return phase?.isa === 'PBXCopyFilesBuildPhase' && Number(phase.dstSubfolderSpec) === 13 && phase.files.some(f => objects[f]?.fileRef === p.ext.productReference);
-  }), 'Containing app must embed the extension product');
+    const plugInsDestination = Number(phase?.dstSubfolderSpec) === 13 || phase?.dstSubfolder === 'PlugIns';
+    return phase?.isa === 'PBXCopyFilesBuildPhase' && plugInsDestination && phase.files?.some(f => objects[f]?.fileRef === p.ext.productReference);
+  });
+  assert.equal(embedPhases.length, 1, 'Containing app must embed the extension product exactly once in PlugIns');
   const matches = candidates.filter(c => c.settings.some(row => row.buildSettings?.PRODUCT_TYPE === 'com.apple.product-type.application' && row.target === p.app.name));
   assert.equal(matches.length, 1, 'Expected exactly one containing-app scheme; inspect scheme-settings.json');
   return matches[0].name;

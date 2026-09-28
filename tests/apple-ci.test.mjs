@@ -181,12 +181,18 @@ test('Tracked/unignored candidate files contain no credential files or private k
   }
 });
 
- test('App scheme need not enumerate its embedded extension dependency', () => {
+ test('App scheme accepts exact Xcode 26 and Xcode 27 PlugIns embed representations', () => {
  const p={app:{name:'App',dependencies:['dep'],buildPhases:['embed']},ext:{id:'ext',productReference:'product'},data:{objects:{dep:{target:'ext'},embed:{isa:'PBXCopyFilesBuildPhase',dstSubfolderSpec:13,files:['file']},file:{fileRef:'product'}}}};
  const candidates=[{name:'App scheme',settings:[{target:'App',buildSettings:{PRODUCT_TYPE:'com.apple.product-type.application'}}]},{name:'Extension scheme',settings:[{target:'Extension',buildSettings:{PRODUCT_TYPE:'com.apple.product-type.app-extension'}}]}];
  assert.equal(selectAppScheme(p,candidates),'App scheme');
+ const xcode27=structuredClone(p); delete xcode27.data.objects.embed.dstSubfolderSpec; xcode27.data.objects.embed.dstSubfolder='PlugIns';
+ assert.equal(selectAppScheme(xcode27,candidates),'App scheme');
  assert.throws(()=>selectAppScheme({...p,app:{...p.app,dependencies:[]}},candidates));
  assert.throws(()=>selectAppScheme({...p,app:{...p.app,buildPhases:[]}},candidates));
+ const wrong=structuredClone(xcode27); wrong.data.objects.embed.dstSubfolder='Frameworks';
+ assert.throws(()=>selectAppScheme(wrong,candidates));
+ const duplicate=structuredClone(xcode27); duplicate.app.buildPhases.push('embed2'); duplicate.data.objects.embed2=structuredClone(duplicate.data.objects.embed);
+ assert.throws(()=>selectAppScheme(duplicate,candidates));
  });
 
 test('Native Safari settings helper uses the exact corrected extension identifier', () => {

@@ -12,6 +12,8 @@ Apple currently calls its conversion utility a packager and documents its previo
 
 The Apple Support-directed redelivery uses GitHub's dedicated `xcode-27` arm64 image with macOS 27 and Xcode **27.0 (27A266a)** at `/Applications/Xcode_27.app`. The workflow sets `DEVELOPER_DIR` explicitly and verifies the exact Xcode version/build. Runner images are mutable; removal or replacement of the pinned version fails rather than silently falling back. npm uses the lockfile with lifecycle scripts disabled; actions remain pinned to verified commit SHAs.
 
+Xcode 27's converter serializes the extension copy phase destination as `dstSubfolder = PlugIns`; Xcode 26 used numeric `dstSubfolderSpec = 13`. The diagnostic accepts only these two equivalent Xcode representations, still requires exactly one copy phase containing the identified extension product, and fails on missing, duplicate or other destinations.
+
 One credential requirement beyond app code signing: exporting an App Store installer also needs a **Mac Installer Distribution** identity. Two separate password-protected P12 secrets provide that identity and Apple Distribution, each with its private key and the same password. Developer ID/development identities are rejected. Do not obtain profiles until the corrected resolved extension ID is confirmed.
 
 ## Two manual workflows
