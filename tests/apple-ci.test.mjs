@@ -165,8 +165,8 @@ test('Unreviewed conversion blocks signing; no fabricated approval', () => {
 });
 test('Reviewed Xcode 27 approval is bound to the successful diagnostic and limited redelivery scope', () => {
   const approval = JSON.parse(read('ci/safari-diagnostic-approval.json'));
-  assert.equal(approval.runUrl, 'https://github.com/mandeeps207/elec-web-extension/actions/runs/36493242566');
-  assert.equal(approval.fingerprint, '451da4b15b1f02adb04e25fdcf7a7b23c4061d058c9832887925568c26fd4545');
+  assert.equal(approval.runUrl, 'https://github.com/mandeeps207/elec-web-extension/actions/runs/36495023324');
+  assert.equal(approval.fingerprint, '7744e3ba9857347595d180f8e41ed10b0a3e47ccb5da66242cfb4719085aaabe');
   assert.equal(approval.toolchain, 'Xcode 27.0 (27A266a)');
   assert(approval.authorizationScope.includes('build 2 redelivery'));
   assert(approval.authorizationScope.includes('no App Review submission or release'));
