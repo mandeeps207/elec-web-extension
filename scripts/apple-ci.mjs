@@ -53,6 +53,25 @@ export function command(label, args, { input, allowFailure = false, stdoutOnly =
 export function commandJson(label, args, options = {}) {
   return JSON.parse(command(label, args, { ...options, stdoutOnly: true }));
 }
+export function safeAppleResponse(value) {
+  const allowed = /^(?:id|requestUUID|requestId|status|statusCode|code|message|description|success|tool-version|os-version)$/i;
+  const forbidden = /(?:key|token|secret|password|authorization|credential|profile|certificate|path|file)/i;
+  function visit(item, depth = 0) {
+    if (depth > 8 || !item || typeof item !== 'object') return undefined;
+    if (Array.isArray(item)) return item.slice(0, 100).filter(v => v && typeof v === 'object').map(v => visit(v, depth + 1));
+    const result = {};
+    for (const [key, child] of Object.entries(item)) {
+      if (forbidden.test(key)) continue;
+      if (allowed.test(key) && ['string', 'boolean', 'number'].includes(typeof child)) result[key] = typeof child === 'string' ? child.slice(0, 2000) : child;
+      else if (child && typeof child === 'object') {
+        const nested = visit(child, depth + 1);
+        if (nested && (Array.isArray(nested) ? nested.length : Object.keys(nested).length)) result[key] = nested;
+      }
+    }
+    return result;
+  }
+  return visit(value);
+}
 function plist(file) { return commandJson('Read property list', ['plutil', '-convert', 'json', '-o', '-', file]); }
 function profilePlist(file) {
   // Profile plists contain dates/data that plutil's JSON format cannot represent.
@@ -182,7 +201,7 @@ function diagnostic() {
   const reportDir = path.join(output, 'diagnostic');
   fs.mkdirSync(reportDir, { recursive: true });
   const version = command('Xcode version', ['xcodebuild', '-version']).trim();
-  assert.equal(version, 'Xcode 26.3\nBuild version 17C529', 'Pinned Xcode not installed; do not silently select another version');
+  assert.equal(version, 'Xcode 27.0\nBuild version 27A266a', 'Pinned Xcode 27.0 not installed; do not silently select another version');
   assert.equal(digest(fs.readFileSync('build/generated/safari-input.zip')), INPUT_HASH);
   const help = converterHelp(reportDir);
   command('Convert Safari resources', ['xcrun', 'safari-web-extension-converter', path.resolve('build/generated/safari-input'), '--project-location', base, '--app-name', 'UK Electrician Route Checker', '--bundle-identifier', APP, '--macos-only', '--copy-resources', '--no-open', '--no-prompt', '--swift']);
@@ -449,9 +468,16 @@ function upload() {
     // Apple's documented altool key search directory override; never place P8 inside the workspace.
     process.env.API_PRIVATE_KEYS_DIR = privateDir;
     const args = ['-f', pkg, '-t', 'macos', '--apiKey', process.env.APPLE_API_KEY_ID, '--apiIssuer', process.env.APPLE_API_ISSUER_ID, '--output-format', 'json'];
-    command('Validate package with Apple', ['xcrun', 'altool', '--validate-app', ...args]);
-    command('Upload package to Apple', ['xcrun', 'altool', '--upload-app', ...args]);
-    save(path.join(output, 'signed/apple-upload.json'), { uploadCommandSucceeded: true, submittedForReview: false, note: 'Check App Store Connect for processing outcome; no raw Apple response published.' });
+    const validationResponse = safeAppleResponse(commandJson('Validate package with Apple', ['xcrun', 'altool', '--validate-app', ...args]));
+    const uploadResponse = safeAppleResponse(commandJson('Upload package to Apple', ['xcrun', 'altool', '--upload-app', ...args]));
+    save(path.join(output, 'signed/apple-upload.json'), {
+      uploadCommandSucceeded: true,
+      submittedForReview: false,
+      build: buildNumber(process.env.BUILD_OVERRIDE),
+      validationResponse,
+      uploadResponse,
+      note: 'Sanitized Apple response metadata only. Check App Store Connect for processing outcome; raw output is not published.'
+    });
   } finally { delete process.env.API_PRIVATE_KEYS_DIR; cleanup(); }
 }
 function cleanup() {

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey, safeAppleResponse } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
@@ -68,14 +68,15 @@ test('Apple workflows dispatch only; unsigned has no secrets; upload defaults of
     assert.deepEqual(Object.keys(w.on), ['workflow_dispatch']);
     assert.deepEqual(w.permissions, { contents: 'read' });
     for (const job of Object.values(w.jobs)) {
-      assert.equal(job['runs-on'], 'macos-15');
-      assert.equal(job.env.DEVELOPER_DIR, '/Applications/Xcode_26.3.app/Contents/Developer');
+      assert.equal(job['runs-on'], 'xcode-27');
+      assert.equal(job.env.DEVELOPER_DIR, '/Applications/Xcode_27.app/Contents/Developer');
       for (const step of job.steps.filter(s => s.uses)) assert(/@[a-f0-9]{40}$/.test(step.uses));
       assert(job.steps.find(s => s.uses?.startsWith('actions/checkout@')).with['persist-credentials'] === false);
     }
   }
   assert(!read('.github/workflows/safari-diagnostic.yml').includes('secrets.'));
   assert.equal(signed.on.workflow_dispatch.inputs.upload_to_app_store.default, false);
+  assert.equal(signed.on.workflow_dispatch.inputs.build_number.default, '2');
   const job = signed.jobs.signed;
   assert.equal(job.environment, 'apple-production');
   const install = job.steps.findIndex(s => s.run?.startsWith('npm ci '));
@@ -93,6 +94,25 @@ test('Apple workflows dispatch only; unsigned has no secrets; upload defaults of
     assert(step.with['retention-days'] <= 3);
     assert(step.with.path.split('\n').filter(Boolean).every(p => /^build\/apple-artifacts\/(diagnostic|signed)\/\*$/.test(p)));
   }
+});
+test('Apple upload evidence retains safe transaction metadata and removes secret-bearing fields', () => {
+  const sanitized = safeAppleResponse({
+    'tool-version': '27.0',
+    requestUUID: 'SAFE-REQUEST-ID',
+    status: 'uploaded',
+    productErrors: [{ code: 0, message: 'No errors uploading', privateKey: 'SECRET', filePath: '/tmp/private.pkg' }],
+    apiKey: 'SECRET',
+    nested: { id: 'UPLOAD-ID', authorization: 'Bearer SECRET' },
+    unknownStrings: ['SECRET', 'SHOULD NOT SURVIVE']
+  });
+  assert.deepEqual(sanitized, {
+    'tool-version': '27.0',
+    requestUUID: 'SAFE-REQUEST-ID',
+    status: 'uploaded',
+    productErrors: [{ code: 0, message: 'No errors uploading' }],
+    nested: { id: 'UPLOAD-ID' }
+  });
+  assert(!JSON.stringify(sanitized).includes('SECRET'));
 });
 test('App Store status workflow is read-only, manual and publishes sanitized evidence', () => {
   const workflow = load(read('.github/workflows/safari-app-store-status.yml'));
