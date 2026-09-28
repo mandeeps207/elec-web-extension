@@ -54,7 +54,7 @@ export function commandJson(label, args, options = {}) {
   return JSON.parse(command(label, args, { ...options, stdoutOnly: true }));
 }
 export function safeAppleResponse(value) {
-  const allowed = /^(?:id|requestUUID|requestId|status|statusCode|code|message|description|success|tool-version|os-version)$/i;
+  const allowed = /^(?:id|requestUUID|requestId|status|statusCode|code|message|message-type|message-code|description|localizedDescription|NSLocalizedDescription|NSLocalizedFailureReason|NSLocalizedRecoverySuggestion|failureReason|recoverySuggestion|severity|domain|success|tool-version|os-version)$/i;
   const forbidden = /(?:key|token|secret|password|authorization|credential|profile|certificate|path|file)/i;
   function visit(item, depth = 0) {
     if (depth > 8 || !item || typeof item !== 'object') return undefined;
@@ -71,6 +71,20 @@ export function safeAppleResponse(value) {
     return result;
   }
   return visit(value);
+}
+export function appleJsonEvidence(stdout = '', stderr = '') {
+  const parsed = [];
+  for (const [stream, text] of [['stdout', stdout], ['stderr', stderr]]) {
+    if (!text?.trim()) continue;
+    try { parsed.push({ stream, response: safeAppleResponse(JSON.parse(text)) }); }
+    catch { /* Raw non-JSON output is deliberately neither retained nor emitted. */ }
+  }
+  return { jsonParsed: parsed.length > 0, parsed };
+}
+function appleJsonCommand(label, args, run = spawnSync) {
+  const r = run(args[0], args.slice(1), { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 20 * 60 * 1000 });
+  events.push({ operation: label, exitCode: r.status });
+  return { exitCode: r.status, signal: r.signal || null, launchError: r.error?.code || null, evidence: appleJsonEvidence(r.stdout, r.stderr) };
 }
 function plist(file) { return commandJson('Read property list', ['plutil', '-convert', 'json', '-o', '-', file]); }
 function profilePlist(file) {
@@ -470,14 +484,24 @@ function upload() {
     // Apple's documented altool key search directory override; never place P8 inside the workspace.
     process.env.API_PRIVATE_KEYS_DIR = privateDir;
     const args = ['-f', pkg, '-t', 'macos', '--apiKey', process.env.APPLE_API_KEY_ID, '--apiIssuer', process.env.APPLE_API_ISSUER_ID, '--output-format', 'json'];
-    const validationResponse = safeAppleResponse(commandJson('Validate package with Apple', ['xcrun', 'altool', '--validate-app', ...args]));
-    const uploadResponse = safeAppleResponse(commandJson('Upload package to Apple', ['xcrun', 'altool', '--upload-app', ...args]));
+    const validation = appleJsonCommand('Validate package with Apple', ['xcrun', 'altool', '--validate-app', ...args]);
+    save(path.join(output, 'signed/apple-validation.json'), validation);
+    if (validation.exitCode !== 0 || validation.signal || validation.launchError) {
+      failedOperation = 'Validate package with Apple';
+      throw new Error('Apple package validation failed; inspect sanitized apple-validation.json');
+    }
+    const uploaded = appleJsonCommand('Upload package to Apple', ['xcrun', 'altool', '--upload-app', ...args]);
+    save(path.join(output, 'signed/apple-upload-response.json'), uploaded);
+    if (uploaded.exitCode !== 0 || uploaded.signal || uploaded.launchError) {
+      failedOperation = 'Upload package to Apple';
+      throw new Error('Apple upload failed; inspect sanitized apple-upload-response.json');
+    }
     save(path.join(output, 'signed/apple-upload.json'), {
       uploadCommandSucceeded: true,
       submittedForReview: false,
       build: buildNumber(process.env.BUILD_OVERRIDE),
-      validationResponse,
-      uploadResponse,
+      validationEvidenceFile: 'apple-validation.json',
+      uploadEvidenceFile: 'apple-upload-response.json',
       note: 'Sanitized Apple response metadata only. Check App Store Connect for processing outcome; raw output is not published.'
     });
   } finally { delete process.env.API_PRIVATE_KEYS_DIR; cleanup(); }

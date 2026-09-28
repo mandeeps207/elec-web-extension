@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey, safeAppleResponse } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey, safeAppleResponse, appleJsonEvidence } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
@@ -113,6 +113,15 @@ test('Apple upload evidence retains safe transaction metadata and removes secret
     nested: { id: 'UPLOAD-ID' }
   });
   assert(!JSON.stringify(sanitized).includes('SECRET'));
+  const failed = appleJsonEvidence('', JSON.stringify({
+    'product-errors': [{ code: 90482, message: 'Asset validation failed', userInfo: { NSLocalizedFailureReason: 'Bundle validation reason', privateKey: 'SECRET' } }],
+    apiKey: 'SECRET'
+  }));
+  assert.deepEqual(failed, { jsonParsed: true, parsed: [{ stream: 'stderr', response: {
+    'product-errors': [{ code: 90482, message: 'Asset validation failed', userInfo: { NSLocalizedFailureReason: 'Bundle validation reason' } }]
+  } }] });
+  assert(!JSON.stringify(failed).includes('SECRET'));
+  assert.deepEqual(appleJsonEvidence('unstructured output', 'also not JSON'), { jsonParsed: false, parsed: [] });
 });
 test('App Store status workflow is read-only, manual and publishes sanitized evidence', () => {
   const workflow = load(read('.github/workflows/safari-app-store-status.yml'));
