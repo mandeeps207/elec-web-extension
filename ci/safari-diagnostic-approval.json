@@ -1,10 +1,10 @@
 {
   "approved": true,
-  "runUrl": "https://github.com/mandeeps207/elec-web-extension/actions/runs/36495023324",
+  "runUrl": "https://github.com/mandeeps207/elec-web-extension/actions/runs/36558345917",
   "reviewedBy": "Mandeep Singh",
-  "fingerprint": "7744e3ba9857347595d180f8e41ed10b0a3e47ccb5da66242cfb4719085aaabe",
+  "fingerprint": "f25d0eb1ba1469d79f16ecc59b5c538016438efad1d61f5a4f7a6f52ae58350f",
   "authorizedOn": "2026-09-29",
-  "authorizationScope": "Apple Developer Support-directed Xcode 27 build 2 redelivery: signing, export, artifact validation and App Store Connect upload only; no App Review submission or release",
+  "authorizationScope": "Compatibility-corrected Xcode 27 build 3 replacement: signing, export, artifact validation and App Store Connect upload only; no App Review submission or release",
   "toolchain": "Xcode 27.0 (27A266a)",
-  "sourceCommit": "3915c7df58ffe370caf70e0fb017313d049d9fa3"
+  "sourceCommit": "63904b8d10c3a4ace7c08c3c113913d25c87cf8a"
 }
