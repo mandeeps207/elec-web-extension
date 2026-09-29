@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { APP, EXT, VERSION, APP_CATEGORY, applyStoreCategory, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, verifyResolvedIdentifiers, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey, safeAppleResponse, appleJsonEvidence } from '../scripts/apple-ci.mjs';
+import { APP, EXT, VERSION, APP_CATEGORY, MIN_MACOS_VERSION, MAC_ARCHITECTURES, applyStoreCategory, buildNumber, checkEntitlements, checkProfile, requireApproval, converterHelp, commandJson, command, correctTargetIdentifiers, correctPlatformCompatibility, verifyResolvedIdentifiers, verifyResolvedCompatibility, TEAM, SKU, APPLE_ID, selectAppScheme, correctNativeIdentifier, importSigningIdentities, apiPrivateKey, safeAppleResponse, appleJsonEvidence } from '../scripts/apple-ci.mjs';
 import { prepareInput, inputHash } from '../scripts/apple-input.mjs';
 // js-yaml is already pinned by package-lock.json through web-ext's dependency tree.
 const { load } = createRequire(import.meta.url)('js-yaml');
@@ -34,6 +34,30 @@ test('Registered Apple identity is assigned by product type to every configurati
   verifyResolvedIdentifiers(rows);
   assert.throws(() => verifyResolvedIdentifiers([rows[0], { ...rows[1], bundle: EXT.replace('.extension', '.Extension') }]));
   assert.throws(() => verifyResolvedIdentifiers([rows[0], { ...rows[1], bundle: APP }]));
+});
+test('Every project and product configuration targets macOS 12 with universal executables', () => {
+  assert.equal(MIN_MACOS_VERSION, '12.0');
+  assert.deepEqual(MAC_ARCHITECTURES, ['arm64', 'x86_64']);
+  const data = { objects: {
+    project: { isa: 'PBXProject', buildConfigurationList: 'project-list' },
+    app: { isa: 'PBXNativeTarget', buildConfigurationList: 'app-list' },
+    extension: { isa: 'PBXNativeTarget', buildConfigurationList: 'extension-list' }
+  } };
+  for (const scope of ['project', 'app', 'extension']) {
+    data.objects[`${scope}-list`] = { buildConfigurations: [`${scope}-debug`, `${scope}-release`] };
+    data.objects[`${scope}-debug`] = { name: 'Debug', buildSettings: { MACOSX_DEPLOYMENT_TARGET: '27.0', ARCHS: 'arm64', ONLY_ACTIVE_ARCH: 'YES' } };
+    data.objects[`${scope}-release`] = { name: 'Release', buildSettings: { MACOSX_DEPLOYMENT_TARGET: '27.0', ARCHS: 'arm64', ONLY_ACTIVE_ARCH: 'NO' } };
+  }
+  correctPlatformCompatibility(data);
+  for (const config of Object.values(data.objects).filter(o => o.buildSettings)) {
+    assert.equal(config.buildSettings.MACOSX_DEPLOYMENT_TARGET, '12.0');
+    assert.equal(config.buildSettings.ARCHS, 'arm64 x86_64');
+    assert.equal(config.buildSettings.ONLY_ACTIVE_ARCH, 'NO');
+  }
+  const rows = ['app', 'extension'].map(target => ({ target, deploymentTarget: '12.0', architectures: 'arm64 x86_64', onlyActiveArchitecture: 'NO' }));
+  verifyResolvedCompatibility(rows);
+  assert.throws(() => verifyResolvedCompatibility([{ ...rows[0], deploymentTarget: '27.0' }, rows[1]]));
+  assert.throws(() => verifyResolvedCompatibility([{ ...rows[0], architectures: 'arm64' }, rows[1]]));
 });
 
 test('JSON commands parse stdout alone; stderr diagnostics never corrupt structured output', () => {

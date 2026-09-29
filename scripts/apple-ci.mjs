@@ -16,6 +16,8 @@ export const SKU = 'ELEC-QUAL-CHECKER-MAC-002';
 export const APPLE_ID = '6812432163';
 export const VERSION = '1.0.0';
 export const APP_CATEGORY = 'public.app-category.education';
+export const MIN_MACOS_VERSION = '12.0';
+export const MAC_ARCHITECTURES = ['arm64', 'x86_64'];
 const INPUT_HASH = '4d8b5877385e29a3aa3136b9e9d8f7812d981be7811ca3704bba308efcbdcb88';
 const base = path.resolve('build/generated/apple');
 const output = path.resolve('build/apple-artifacts');
@@ -168,12 +170,34 @@ export function correctTargetIdentifiers(data) {
     }
   }
 }
+export function correctPlatformCompatibility(data) {
+  const scopes = Object.values(data.objects).filter(o => ['PBXProject', 'PBXNativeTarget'].includes(o.isa));
+  assert.equal(scopes.filter(o => o.isa === 'PBXProject').length, 1, 'Expected one Xcode project compatibility scope');
+  assert.equal(scopes.filter(o => o.isa === 'PBXNativeTarget').length, 2, 'Expected app and extension compatibility scopes');
+  for (const scope of scopes) {
+    const configs = data.objects[scope.buildConfigurationList].buildConfigurations.map(id => data.objects[id]);
+    for (const name of ['Debug', 'Release']) assert(configs.some(c => c.name === name), `Missing ${name} compatibility configuration`);
+    for (const config of configs) {
+      config.buildSettings.MACOSX_DEPLOYMENT_TARGET = MIN_MACOS_VERSION;
+      config.buildSettings.ARCHS = MAC_ARCHITECTURES.join(' ');
+      config.buildSettings.ONLY_ACTIVE_ARCH = 'NO';
+    }
+  }
+}
 export function verifyResolvedIdentifiers(rows) {
   assert.equal(rows.length, 2);
   for (const [type, expected] of [['com.apple.product-type.application', APP], ['com.apple.product-type.app-extension', EXT]]) {
     const targets = rows.filter(r => r.productType === type);
     assert.equal(targets.length, 1);
     assert.equal(targets[0].bundle, expected, 'Resolved Bundle ID differs from the exact approved value');
+  }
+}
+export function verifyResolvedCompatibility(rows) {
+  assert.equal(rows.length, 2);
+  for (const row of rows) {
+    assert.equal(row.deploymentTarget, MIN_MACOS_VERSION, 'Resolved minimum macOS version is too restrictive or inconsistent');
+    assert.deepEqual(row.architectures.trim().split(/\s+/).sort(), [...MAC_ARCHITECTURES].sort(), 'Resolved product must be universal arm64/x86_64');
+    assert.equal(row.onlyActiveArchitecture, 'NO');
   }
 }
 function xcodeArgs(p, scheme, configuration = 'Release') { return ['xcodebuild', '-project', p.project, '-scheme', scheme, '-configuration', configuration, '-destination', 'generic/platform=macOS']; }
@@ -196,7 +220,7 @@ export function selectAppScheme(p, candidates) {
   return matches[0].name;
 }
 function topology(p, scheme, configuration = 'Release') {
-  const result = settings(p, scheme, configuration).map(({ target, buildSettings: b }) => ({ target, configuration, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, sandbox: b.ENABLE_APP_SANDBOX, network: b.ENABLE_OUTGOING_NETWORK_CONNECTIONS, userSelectedFiles: b.ENABLE_USER_SELECTED_FILES, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE, productName: b.FULL_PRODUCT_NAME, version: b.MARKETING_VERSION, buildNumber: b.CURRENT_PROJECT_VERSION }));
+  const result = settings(p, scheme, configuration).map(({ target, buildSettings: b }) => ({ target, configuration, bundle: b.PRODUCT_BUNDLE_IDENTIFIER, plist: b.INFOPLIST_FILE, entitlements: b.CODE_SIGN_ENTITLEMENTS, sandbox: b.ENABLE_APP_SANDBOX, network: b.ENABLE_OUTGOING_NETWORK_CONNECTIONS, userSelectedFiles: b.ENABLE_USER_SELECTED_FILES, platform: b.SUPPORTED_PLATFORMS, sdk: b.SDKROOT, productType: b.PRODUCT_TYPE, productName: b.FULL_PRODUCT_NAME, version: b.MARKETING_VERSION, buildNumber: b.CURRENT_PROJECT_VERSION, deploymentTarget: b.MACOSX_DEPLOYMENT_TARGET, architectures: b.ARCHS, onlyActiveArchitecture: b.ONLY_ACTIVE_ARCH }));
   return result.sort((a, b) => a.target.localeCompare(b.target));
 }
 function verifyResources(dir) {
@@ -238,6 +262,7 @@ function diagnostic() {
   const original = topology(p, scheme);
   save(path.join(reportDir, 'generated-structure.json'), { project: path.relative(base, p.project), schemes, selectedScheme: scheme, targets: original });
   correctTargetIdentifiers(p.data);
+  correctPlatformCompatibility(p.data);
   for (const [target, expected] of [[p.app, APP], [p.ext, EXT]]) {
     const b = original.find(v => v.target === target.name);
     assert.equal(b.platform, 'macosx', 'Only macOS is permitted');
@@ -285,7 +310,10 @@ function diagnostic() {
   save(controllers[0], correctNativeIdentifier(fs.readFileSync(controllers[0], 'utf8')));
   assert(fs.readFileSync(controllers[0], 'utf8').includes(`let extensionBundleIdentifier = "${EXT}"`));
   const corrected = Object.fromEntries(['Debug', 'Release'].map(c => [c, topology(p, scheme, c)]));
-  for (const rows of Object.values(corrected)) verifyResolvedIdentifiers(rows);
+  for (const rows of Object.values(corrected)) {
+    verifyResolvedIdentifiers(rows);
+    verifyResolvedCompatibility(rows);
+  }
   for (const c of ['Debug', 'Release']) for (const row of settings(p, scheme, c)) verifyCapabilities(row.buildSettings);
   save(path.join(reportDir, 'corrected-structure.json'), { project: path.relative(base, p.project), scheme, team: TEAM, containingBundleId: APP, extensionBundleId: EXT, sku: SKU, appleId: APPLE_ID, configurations: corrected });
   safeGeneratedSource();
@@ -349,6 +377,10 @@ function verifyProduct(app, signed, team) {
     assert.equal(info.CFBundleShortVersionString, VERSION);
     assert.equal(info.CFBundleVersion, buildNumber(process.env.BUILD_OVERRIDE || '', process.env.GITHUB_RUN_NUMBER || '1', process.env.GITHUB_RUN_ATTEMPT || '1'));
     assert.equal(info.ITSAppUsesNonExemptEncryption, false);
+    assert.equal(info.LSMinimumSystemVersion, MIN_MACOS_VERSION, 'Built product minimum macOS version mismatch');
+    const executable = path.join(product, 'Contents/MacOS', info.CFBundleExecutable);
+    const architectures = command('Inspect executable architectures', ['lipo', '-archs', executable]).trim().split(/\s+/).sort();
+    assert.deepEqual(architectures, [...MAC_ARCHITECTURES].sort(), 'Built product must contain arm64 and x86_64 slices');
     if (product === app) assert.equal(info.LSApplicationCategoryType, APP_CATEGORY, 'Containing app must declare the reviewed Mac App Store category');
     else assert(!Object.hasOwn(info, 'LSApplicationCategoryType'), 'Embedded extension must not declare an application category');
     if (product === ext) assert.equal(info.NSExtension?.NSExtensionPointIdentifier, 'com.apple.Safari.web-extension');
