@@ -187,14 +187,15 @@ test('Unreviewed conversion blocks signing; no fabricated approval', () => {
   requireApproval({ fingerprint: approved.fingerprint }, approved);
   assert.throws(() => requireApproval({ fingerprint: 'b'.repeat(64) }, approved), /differs from reviewed/);
 });
-test('Reviewed Xcode 27 approval is bound to the compatibility diagnostic and limited build 3 scope', () => {
+test('Native launcher approval binds successful diagnostic and limits build 4 to TestFlight delivery', () => {
   const approval = JSON.parse(read('ci/safari-diagnostic-approval.json'));
-  assert.equal(approval.approved, false, 'Rejected build 3 evidence cannot approve the new launcher');
-  assert.equal(approval.runUrl, 'https://github.com/mandeeps207/elec-web-extension/actions/runs/36558345917');
-  assert.equal(approval.fingerprint, 'f25d0eb1ba1469d79f16ecc59b5c538016438efad1d61f5a4f7a6f52ae58350f');
+  assert.equal(approval.approved, true);
+  assert.equal(approval.runUrl, 'https://github.com/mandeeps207/elec-web-extension/actions/runs/37303690770');
+  assert.equal(approval.fingerprint, 'a57976faa2c5ea9371731942e2204ea6b59319ab6a0ae26b4f4fc6d43b4a13e7');
   assert.equal(approval.toolchain, 'Xcode 27.0 (27A266a)');
-  assert.equal(approval.sourceCommit, '63904b8d10c3a4ace7c08c3c113913d25c87cf8a');
-  assert(approval.authorizationScope.includes('build 3 replacement'));
+  assert.equal(approval.sourceCommit, '7cee4ae136c6c0718fc3245a0671c45bca1ca23d');
+  assert(approval.authorizationScope.includes('build 4 TestFlight replacement'));
+  assert(approval.manualAcceptance.startsWith('Pending'));
   assert(approval.authorizationScope.includes('no App Review submission or release'));
 });
 test('Entitlements reject network, storage, groups and debug capability', () => {

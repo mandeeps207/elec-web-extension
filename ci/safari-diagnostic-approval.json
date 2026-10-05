@@ -1,11 +1,11 @@
 {
-  "approved": false,
-  "blockedReason": "Apple rejected build 3 for blank containing-app launch. Native launcher correction requires fresh macOS diagnostic review and signed TestFlight launch verification; prior evidence below is historical.",
-  "runUrl": "https://github.com/mandeeps207/elec-web-extension/actions/runs/36558345917",
+  "approved": true,
+  "manualAcceptance": "Pending clean installed TestFlight launch and Safari verification; unsigned native-controller smoke test is not signed-app acceptance.",
+  "runUrl": "https://github.com/mandeeps207/elec-web-extension/actions/runs/37303690770",
   "reviewedBy": "Mandeep Singh",
-  "fingerprint": "f25d0eb1ba1469d79f16ecc59b5c538016438efad1d61f5a4f7a6f52ae58350f",
-  "authorizedOn": "2026-09-29",
-  "authorizationScope": "Compatibility-corrected Xcode 27 build 3 replacement: signing, export, artifact validation and App Store Connect upload only; no App Review submission or release",
+  "fingerprint": "a57976faa2c5ea9371731942e2204ea6b59319ab6a0ae26b4f4fc6d43b4a13e7",
+  "authorizedOn": "2026-10-05",
+  "authorizationScope": "Native-launcher build 4 TestFlight replacement: signing, export, artifact validation and App Store Connect upload only; no App Review submission or release",
   "toolchain": "Xcode 27.0 (27A266a)",
-  "sourceCommit": "63904b8d10c3a4ace7c08c3c113913d25c87cf8a"
+  "sourceCommit": "7cee4ae136c6c0718fc3245a0671c45bca1ca23d"
 }

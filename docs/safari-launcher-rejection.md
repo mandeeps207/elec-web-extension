@@ -10,4 +10,8 @@ Phase 1 approval is closed. The previous run/fingerprint are retained as histori
 
 Before resubmission, an authorized Mac tester must install the replacement through TestFlight and check a clean first launch on macOS 27, visible instructions, the Safari Settings button, enabled/disabled extension state, all five toolbar routes, reset/links, keyboard/VoiceOver and screenshots. Also test supported older macOS versions where available. Record actual results. Use a new build number greater than every previous upload (4 if 3 remains the latest). Only after fresh diagnostic review and signed artifact validation should the replacement be uploaded. Do not resubmit build 3 with reviewer instructions alone.
 
-No reviewer reply, workflow dispatch, Apple upload, commit or push is part of this local corrective preparation.
+## Fresh diagnostic review, October 5, 2026
+
+Unsigned run 37303690770 used master at 7cee4ae136c6c0718fc3245a0671c45bca1ca23d and passed. The native-controller compile and content smoke checks both exited zero. The artifact controller matches the deterministic tracked source. Canonical fingerprint a57976faa2c5ea9371731942e2204ea6b59319ab6a0ae26b4f4fc6d43b4a13e7 was independently recomputed and matched. Both Debug/Release targets retain exact identifiers, macOS 12.0, arm64 and x86_64, sandbox enabled and network/file capabilities disabled. Version is 1.0.0 and encryption is Boolean false. The approved Safari input hash is unchanged.
+
+Phase 1 evidence is now approved for signing/export/validation and build 4 TestFlight delivery only. The clean signed-app first-launch and Safari acceptance tests remain pending and must precede resubmission. Build 3 remains rejected; no release or App Review submission is authorized by this evidence. No workflow was dispatched or Apple upload performed by the review.
