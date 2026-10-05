@@ -7,6 +7,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { installArtwork } from './apple-artwork.mjs';
+import { nativeLauncherStoryboard, nativeLauncherSource } from './apple-launcher.mjs';
 import { restrictCapabilities, verifyCapabilities, forbiddenEntitlements, sourceHashes, pngAudit } from './apple-evidence.mjs';
 
 export const TEAM = '3XPCC2X77K';
@@ -307,7 +308,9 @@ function diagnostic() {
   writePlist(p.file, p.data);
   const controllers = walk(base).filter(f => f.endsWith('.swift') && /let extensionBundleIdentifier\s*=/.test(fs.readFileSync(f, 'utf8')));
   assert.equal(controllers.length, 1, 'Expected one containing-app Safari settings helper');
-  save(controllers[0], correctNativeIdentifier(fs.readFileSync(controllers[0], 'utf8')));
+  const launcherStoryboard = path.join(path.dirname(controllers[0]), 'Base.lproj', 'Main.storyboard');
+  save(launcherStoryboard, nativeLauncherStoryboard(fs.readFileSync(launcherStoryboard, 'utf8')));
+  save(controllers[0], nativeLauncherSource(EXT));
   assert(fs.readFileSync(controllers[0], 'utf8').includes(`let extensionBundleIdentifier = "${EXT}"`));
   const corrected = Object.fromEntries(['Debug', 'Release'].map(c => [c, topology(p, scheme, c)]));
   for (const rows of Object.values(corrected)) {
@@ -349,6 +352,18 @@ function diagnostic() {
   assert(productName?.endsWith('.app') && path.basename(productName) === productName, 'Unexpected app product name');
   const app = path.join(base, 'DerivedData/Build/Products/Release', productName);
   report.products = verifyProduct(app, false);
+  // Exercise the actual native controller; this is not a full signed-app UI test.
+  const smokeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'elec-launcher-smoke-'));
+  try {
+    const main = path.join(smokeDir, 'main.swift');
+    fs.copyFileSync('scripts/apple-launcher-smoke.swift', main);
+    const executable = path.join(smokeDir, 'launcher-smoke');
+    command('Compile native launcher smoke test', ['xcrun', 'swiftc', controllers[0], main, '-o', executable]);
+    command('Verify native launcher content', [executable]);
+    report.launcherSmoke = { nativeControllerContent: 'PASS', signedAppLaunch: 'Requires manual TestFlight verification' };
+  } finally {
+    fs.rmSync(smokeDir, { recursive: true, force: true });
+  }
   const generatedEntitlements = walk(path.join(base,'DerivedData')).filter(f=>f.endsWith('.xcent'));
   for (const file of generatedEntitlements) {
     const entitlements = plist(file);

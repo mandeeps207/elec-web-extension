@@ -189,6 +189,7 @@ test('Unreviewed conversion blocks signing; no fabricated approval', () => {
 });
 test('Reviewed Xcode 27 approval is bound to the compatibility diagnostic and limited build 3 scope', () => {
   const approval = JSON.parse(read('ci/safari-diagnostic-approval.json'));
+  assert.equal(approval.approved, false, 'Rejected build 3 evidence cannot approve the new launcher');
   assert.equal(approval.runUrl, 'https://github.com/mandeeps207/elec-web-extension/actions/runs/36558345917');
   assert.equal(approval.fingerprint, 'f25d0eb1ba1469d79f16ecc59b5c538016438efad1d61f5a4f7a6f52ae58350f');
   assert.equal(approval.toolchain, 'Xcode 27.0 (27A266a)');

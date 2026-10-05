@@ -1,5 +1,6 @@
 {
-  "approved": true,
+  "approved": false,
+  "blockedReason": "Apple rejected build 3 for blank containing-app launch. Native launcher correction requires fresh macOS diagnostic review and signed TestFlight launch verification; prior evidence below is historical.",
   "runUrl": "https://github.com/mandeeps207/elec-web-extension/actions/runs/36558345917",
   "reviewedBy": "Mandeep Singh",
   "fingerprint": "f25d0eb1ba1469d79f16ecc59b5c538016438efad1d61f5a4f7a6f52ae58350f",
